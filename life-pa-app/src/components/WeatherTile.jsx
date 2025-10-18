@@ -4,33 +4,18 @@ import CardContainer from './CardContainer';
 import { colors } from '../theme/colors';
 import { fonts } from '../theme/fonts';
 
-// Dynamically import expo-location to handle potential loading issues
-let Location = null;
-let hasLocationModule = false;
-
-try {
-  Location = require('expo-location');
-  hasLocationModule = true;
-} catch (error) {
-  console.log('Note: expo-location is not available yet. Weather tile will be hidden.');
-  hasLocationModule = false;
-}
+// On web, we'll use the browser's native Geolocation API
+// On native platforms, we'll use expo-location
+const isWeb = Platform.OS === 'web';
 
 export default function WeatherTile() {
   const [location, setLocation] = useState(null);
   const [weather, setWeather] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [isAvailable, setIsAvailable] = useState(hasLocationModule);
 
   useEffect(() => {
-    if (hasLocationModule && Location) {
-      getLocationAndWeather();
-    } else {
-      // Module not available - hide component entirely
-      setIsAvailable(false);
-      setLoading(false);
-    }
+    getLocationAndWeather();
   }, []);
 
   const getLocationAndWeather = async () => {
@@ -38,28 +23,60 @@ export default function WeatherTile() {
       setLoading(true);
       setError(null);
 
-      if (!Location) {
-        throw new Error('Location services not available');
+      let latitude, longitude, locationName;
+
+      if (isWeb) {
+        // Use browser's native Geolocation API
+        if (!navigator.geolocation) {
+          throw new Error('Geolocation not supported');
+        }
+
+        const position = await new Promise((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            enableHighAccuracy: false,
+            timeout: 10000,
+            maximumAge: 300000, // 5 minutes
+          });
+        });
+
+        latitude = position.coords.latitude;
+        longitude = position.coords.longitude;
+
+        // Get location name using reverse geocoding API
+        try {
+          const geoResponse = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
+          );
+          const geoData = await geoResponse.json();
+          locationName = geoData.address?.city || geoData.address?.town || geoData.address?.village || 'Your Location';
+        } catch (err) {
+          locationName = 'Your Location';
+        }
+      } else {
+        // Use expo-location for native platforms
+        const Location = require('expo-location');
+        
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          setError('Location permission denied');
+          setLoading(false);
+          return;
+        }
+
+        const currentLocation = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+
+        latitude = currentLocation.coords.latitude;
+        longitude = currentLocation.coords.longitude;
+
+        const locationData = await Location.reverseGeocodeAsync({ latitude, longitude });
+        locationName = locationData[0]?.city || locationData[0]?.region || 'Your Location';
       }
 
-      // Request location permissions
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      
-      if (status !== 'granted') {
-        setError('Location permission denied');
-        setLoading(false);
-        return;
-      }
-
-      // Get current location
-      const currentLocation = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy?.Balanced || 4,
-      });
-
-      setLocation(currentLocation);
+      setLocation({ coords: { latitude, longitude } });
 
       // Fetch weather data using Open-Meteo API (free, no API key required)
-      const { latitude, longitude } = currentLocation.coords;
       const weatherResponse = await fetch(
         `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m&timezone=auto`
       );
@@ -69,16 +86,10 @@ export default function WeatherTile() {
       }
 
       const weatherData = await weatherResponse.json();
-      
-      // Get location name using reverse geocoding
-      const locationData = await Location.reverseGeocodeAsync({
-        latitude,
-        longitude,
-      });
 
       setWeather({
         ...weatherData.current,
-        locationName: locationData[0]?.city || locationData[0]?.region || 'Your Location',
+        locationName: locationName,
       });
 
       setLoading(false);
@@ -149,11 +160,6 @@ export default function WeatherTile() {
     };
     return descriptions[code] || 'Unknown';
   };
-
-  // Don't render anything if the module isn't available
-  if (!isAvailable) {
-    return null;
-  }
 
   if (loading) {
     return (

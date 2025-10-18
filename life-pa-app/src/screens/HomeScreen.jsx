@@ -3,7 +3,6 @@ import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Modal, Alert, Pla
 import { getCurrentUser, signOutUser } from '../services/auth';
 import Layout from '../components/Layout';
 import CardContainer from '../components/CardContainer';
-import ButtonPrimary from '../components/ButtonPrimary';
 import WeatherTile from '../components/WeatherTile';
 import { colors } from '../theme/colors';
 import { fonts } from '../theme/fonts';
@@ -108,11 +107,6 @@ export default function HomeScreen({ navigation }) {
     // Add event functionality will be implemented later
   };
 
-  const handleUploadDocumentPress = () => {
-    console.log('Upload Document pressed');
-    // Upload document functionality will be implemented later
-  };
-
   return (
     <Layout style={styles.layout}>
       {/* Custom Header with Menu Button */}
@@ -138,6 +132,53 @@ export default function HomeScreen({ navigation }) {
 
         {/* Weather Tile */}
         <WeatherTile />
+
+        {/* Quick Action Buttons */}
+        <View style={styles.quickActionsGrid}>
+          <TouchableOpacity 
+            style={styles.quickActionButton}
+            onPress={() => console.log('Set Reminder pressed')}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.quickActionIcon, { backgroundColor: colors.primary + '20' }]}>
+              <Text style={styles.quickActionEmoji}>🔔</Text>
+            </View>
+            <Text style={styles.quickActionText}>Set Reminder</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={styles.quickActionButton}
+            onPress={() => console.log('Scan Receipt pressed')}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.quickActionIcon, { backgroundColor: colors.primary + '20' }]}>
+              <Text style={styles.quickActionEmoji}>📄</Text>
+            </View>
+            <Text style={styles.quickActionText}>Scan Receipt</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={styles.quickActionButton}
+            onPress={handleAddEventPress}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.quickActionIcon, { backgroundColor: colors.primary + '20' }]}>
+              <Text style={styles.quickActionEmoji}>➕</Text>
+            </View>
+            <Text style={styles.quickActionText}>Add Event</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={styles.quickActionButton}
+            onPress={() => console.log('View Tasks pressed')}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.quickActionIcon, { backgroundColor: colors.primary + '20' }]}>
+              <Text style={styles.quickActionEmoji}>✓</Text>
+            </View>
+            <Text style={styles.quickActionText}>View Tasks</Text>
+          </TouchableOpacity>
+        </View>
 
         {/* Upcoming Events Wrapper */}
         <CardContainer elevated style={styles.eventsWrapper}>
@@ -197,33 +238,20 @@ export default function HomeScreen({ navigation }) {
           )}
         </CardContainer>
 
-        {/* Action Buttons */}
-        <View style={styles.actionButtons}>
-          <ButtonPrimary 
-            title="➕ Add Event"
-            onPress={handleAddEventPress}
-            style={styles.actionButton}
-          />
-          <ButtonPrimary 
-            title="📄 Upload Document"
-            variant="secondary"
-            onPress={handleUploadDocumentPress}
-            style={styles.actionButton}
-          />
-        </View>
-
       </ScrollView>
 
-      {/* AI Assistant Floating Button */}
+      {/* AI Assistant Speech Bubble */}
       <TouchableOpacity 
-        style={styles.aiAssistantButton}
+        style={styles.aiAssistantBubble}
         onPress={handleAIAssistantPress}
         activeOpacity={0.9}
       >
         <View style={styles.aiAssistantContent}>
           <Text style={styles.aiAssistantIcon}>🤖</Text>
-          <Text style={styles.aiAssistantText}>How can I help</Text>
+          <Text style={styles.aiAssistantText}>How can I help?</Text>
         </View>
+        {/* Speech bubble tail */}
+        <View style={styles.bubbleTail} />
       </TouchableOpacity>
 
       {/* Slide-in Menu Modal */}
@@ -297,9 +325,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 16,
     paddingHorizontal: 16,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.background,
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
   },
   menuButton: {
     width: 40,
@@ -311,7 +339,7 @@ const styles = StyleSheet.create({
   menuLine: {
     width: 24,
     height: 3,
-    backgroundColor: colors.text,
+    backgroundColor: colors.textLight,
     marginVertical: 2,
     borderRadius: 2,
   },
@@ -319,7 +347,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: fonts.sizes.title,
     fontWeight: '600',
-    color: colors.text,
+    color: colors.textLight,
     textAlign: 'center',
   },
   headerRight: {
@@ -328,6 +356,43 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     padding: 16,
+  },
+  quickActionsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginBottom: 16,
+  },
+  quickActionButton: {
+    flex: 1,
+    minWidth: '47%',
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  quickActionIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  quickActionEmoji: {
+    fontSize: 22,
+  },
+  quickActionText: {
+    fontSize: fonts.sizes.body,
+    fontWeight: '600',
+    color: colors.text,
+    flex: 1,
   },
   eventsWrapper: {
     padding: 16,
@@ -437,29 +502,19 @@ const styles = StyleSheet.create({
     color: colors.text,
     opacity: 0.6,
   },
-  actionButtons: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 24,
-  },
-  actionButton: {
-    flex: 1,
-  },
-  aiAssistantButton: {
+  aiAssistantBubble: {
     position: 'absolute',
-    bottom: 20,
+    bottom: 35,
     right: 20,
     backgroundColor: colors.primary,
-    borderRadius: 30,
-    paddingVertical: 12,
+    borderRadius: 20,
+    paddingVertical: 14,
     paddingHorizontal: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
   },
   aiAssistantContent: {
     flexDirection: 'row',
@@ -474,6 +529,20 @@ const styles = StyleSheet.create({
     fontSize: fonts.sizes.body,
     fontWeight: '600',
   },
+  bubbleTail: {
+    position: 'absolute',
+    bottom: -22,
+    left: 16,
+    width: 0,
+    height: 0,
+    borderLeftWidth: 12,
+    borderRightWidth: 12,
+    borderTopWidth: 30,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderTopColor: colors.primary,
+    transform: [{ rotate: '20deg' }],
+  },
   menuOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -482,7 +551,7 @@ const styles = StyleSheet.create({
   menuContainer: {
     width: 280,
     height: '100%',
-    backgroundColor: colors.surface,
+    backgroundColor: colors.background,
     shadowColor: '#000',
     shadowOffset: { width: 2, height: 0 },
     shadowOpacity: 0.3,
@@ -496,19 +565,19 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
     paddingHorizontal: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
   },
   menuHeaderText: {
     fontSize: fonts.sizes.title,
     fontWeight: '600',
-    color: colors.text,
+    color: colors.textLight,
   },
   closeButton: {
     padding: 4,
   },
   closeButtonText: {
     fontSize: 24,
-    color: colors.text,
+    color: colors.textLight,
     opacity: 0.6,
   },
   menuItems: {
@@ -527,12 +596,12 @@ const styles = StyleSheet.create({
   },
   menuItemText: {
     fontSize: fonts.sizes.body,
-    color: colors.text,
+    color: colors.textLight,
     fontWeight: '500',
   },
   menuDivider: {
     height: 1,
-    backgroundColor: '#E2E8F0',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
     marginVertical: 8,
     marginHorizontal: 20,
   },
