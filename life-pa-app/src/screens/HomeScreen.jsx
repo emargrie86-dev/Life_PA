@@ -4,6 +4,7 @@ import { getCurrentUser, signOutUser } from '../services/auth';
 import Layout from '../components/Layout';
 import CardContainer from '../components/CardContainer';
 import ButtonPrimary from '../components/ButtonPrimary';
+import WeatherTile from '../components/WeatherTile';
 import { colors } from '../theme/colors';
 import { fonts } from '../theme/fonts';
 import { getCategoryById } from '../theme/categories';
@@ -134,6 +135,9 @@ export default function HomeScreen({ navigation }) {
       </View>
       
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+
+        {/* Weather Tile */}
+        <WeatherTile />
 
         {/* Upcoming Events Wrapper */}
         <CardContainer elevated style={styles.eventsWrapper}>
