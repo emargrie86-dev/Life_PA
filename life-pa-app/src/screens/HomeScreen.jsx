@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Modal, Alert, Platform } from 'react-native';
+import { MotiView } from 'moti';
 import { getCurrentUser, signOutUser } from '../services/auth';
 import Layout from '../components/Layout';
 import CardContainer from '../components/CardContainer';
@@ -102,11 +103,6 @@ export default function HomeScreen({ navigation }) {
     // AI Assistant functionality will be implemented later
   };
 
-  const handleAddEventPress = () => {
-    console.log('Add Event pressed');
-    // Add event functionality will be implemented later
-  };
-
   return (
     <Layout style={styles.layout}>
       {/* Custom Header with Menu Button */}
@@ -135,49 +131,73 @@ export default function HomeScreen({ navigation }) {
 
         {/* Quick Action Buttons */}
         <View style={styles.quickActionsGrid}>
-          <TouchableOpacity 
-            style={styles.quickActionButton}
-            onPress={() => console.log('Set Reminder pressed')}
-            activeOpacity={0.7}
+          <MotiView
+            from={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ type: 'spring', damping: 15, delay: 100 }}
           >
-            <View style={[styles.quickActionIcon, { backgroundColor: colors.primary + '20' }]}>
-              <Text style={styles.quickActionEmoji}>🔔</Text>
-            </View>
-            <Text style={styles.quickActionText}>Set Reminder</Text>
-          </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.quickActionButton}
+              onPress={() => navigation.navigate('SetReminder')}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.quickActionIcon, { backgroundColor: colors.primary + '20' }]}>
+                <Text style={styles.quickActionEmoji}>🔔</Text>
+              </View>
+              <Text style={styles.quickActionText}>Set Reminder</Text>
+            </TouchableOpacity>
+          </MotiView>
 
-          <TouchableOpacity 
-            style={styles.quickActionButton}
-            onPress={() => console.log('Scan Receipt pressed')}
-            activeOpacity={0.7}
+          <MotiView
+            from={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ type: 'spring', damping: 15, delay: 200 }}
           >
-            <View style={[styles.quickActionIcon, { backgroundColor: colors.primary + '20' }]}>
-              <Text style={styles.quickActionEmoji}>📄</Text>
-            </View>
-            <Text style={styles.quickActionText}>Scan Receipt</Text>
-          </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.quickActionButton}
+              onPress={() => navigation.navigate('ScanReceipt')}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.quickActionIcon, { backgroundColor: colors.primary + '20' }]}>
+                <Text style={styles.quickActionEmoji}>📄</Text>
+              </View>
+              <Text style={styles.quickActionText}>Scan Receipt</Text>
+            </TouchableOpacity>
+          </MotiView>
 
-          <TouchableOpacity 
-            style={styles.quickActionButton}
-            onPress={handleAddEventPress}
-            activeOpacity={0.7}
+          <MotiView
+            from={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ type: 'spring', damping: 15, delay: 300 }}
           >
-            <View style={[styles.quickActionIcon, { backgroundColor: colors.primary + '20' }]}>
-              <Text style={styles.quickActionEmoji}>➕</Text>
-            </View>
-            <Text style={styles.quickActionText}>Add Event</Text>
-          </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.quickActionButton}
+              onPress={() => navigation.navigate('AddEvent')}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.quickActionIcon, { backgroundColor: colors.primary + '20' }]}>
+                <Text style={styles.quickActionEmoji}>➕</Text>
+              </View>
+              <Text style={styles.quickActionText}>Add Event</Text>
+            </TouchableOpacity>
+          </MotiView>
 
-          <TouchableOpacity 
-            style={styles.quickActionButton}
-            onPress={() => console.log('View Tasks pressed')}
-            activeOpacity={0.7}
+          <MotiView
+            from={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ type: 'spring', damping: 15, delay: 400 }}
           >
-            <View style={[styles.quickActionIcon, { backgroundColor: colors.primary + '20' }]}>
-              <Text style={styles.quickActionEmoji}>✓</Text>
-            </View>
-            <Text style={styles.quickActionText}>View Tasks</Text>
-          </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.quickActionButton}
+              onPress={() => navigation.navigate('ViewTasks')}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.quickActionIcon, { backgroundColor: colors.primary + '20' }]}>
+                <Text style={styles.quickActionEmoji}>✓</Text>
+              </View>
+              <Text style={styles.quickActionText}>View Tasks</Text>
+            </TouchableOpacity>
+          </MotiView>
         </View>
 
         {/* Upcoming Events Wrapper */}
@@ -196,36 +216,46 @@ export default function HomeScreen({ navigation }) {
               const category = getCategoryById(event.categoryId);
               const isLastItem = index === upcomingEvents.length - 1;
               return (
-                <TouchableOpacity 
+                <MotiView
                   key={event.id}
-                  activeOpacity={0.7}
-                  onPress={() => console.log(`Event pressed: ${event.title}`)}
+                  from={{ opacity: 0, translateX: -20 }}
+                  animate={{ opacity: 1, translateX: 0 }}
+                  transition={{ 
+                    type: 'timing', 
+                    duration: 400, 
+                    delay: 500 + (index * 100) 
+                  }}
                 >
-                  <View style={[styles.eventCard, !isLastItem && styles.eventCardWithBorder]}>
-                    <View style={styles.eventContent}>
-                      <View style={[styles.eventIconContainer, { backgroundColor: category.color + '20' }]}>
-                        <Text style={styles.eventIcon}>{category.icon}</Text>
-                      </View>
-                      
-                      <View style={styles.eventDetails}>
-                        <Text style={styles.eventTitle}>{event.title}</Text>
-                        <View style={styles.eventMeta}>
-                          <Text style={styles.eventDate}>{event.date}</Text>
-                          <Text style={styles.eventTime}>• {event.time}</Text>
+                  <TouchableOpacity 
+                    activeOpacity={0.7}
+                    onPress={() => console.log(`Event pressed: ${event.title}`)}
+                  >
+                    <View style={[styles.eventCard, !isLastItem && styles.eventCardWithBorder]}>
+                      <View style={styles.eventContent}>
+                        <View style={[styles.eventIconContainer, { backgroundColor: category.color + '20' }]}>
+                          <Text style={styles.eventIcon}>{category.icon}</Text>
                         </View>
-                        <View style={[styles.eventCategory, { backgroundColor: category.color + '15' }]}>
-                          <Text style={[styles.eventCategoryText, { color: category.color }]}>
-                            {category.name}
-                          </Text>
+                        
+                        <View style={styles.eventDetails}>
+                          <Text style={styles.eventTitle}>{event.title}</Text>
+                          <View style={styles.eventMeta}>
+                            <Text style={styles.eventDate}>{event.date}</Text>
+                            <Text style={styles.eventTime}>• {event.time}</Text>
+                          </View>
+                          <View style={[styles.eventCategory, { backgroundColor: category.color + '15' }]}>
+                            <Text style={[styles.eventCategoryText, { color: category.color }]}>
+                              {category.name}
+                            </Text>
+                          </View>
                         </View>
-                      </View>
 
-                      <View style={styles.eventArrow}>
-                        <Text style={styles.arrowText}>›</Text>
+                        <View style={styles.eventArrow}>
+                          <Text style={styles.arrowText}>›</Text>
+                        </View>
                       </View>
                     </View>
-                  </View>
-                </TouchableOpacity>
+                  </TouchableOpacity>
+                </MotiView>
               );
             })
           ) : (
@@ -283,6 +313,18 @@ export default function HomeScreen({ navigation }) {
               >
                 <Text style={styles.menuItemIcon}>👤</Text>
                 <Text style={styles.menuItemText}>Profile</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={styles.menuItem}
+                onPress={() => {
+                  setMenuVisible(false);
+                  navigation.navigate('Analytics');
+                }}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.menuItemIcon}>📊</Text>
+                <Text style={styles.menuItemText}>Analytics</Text>
               </TouchableOpacity>
 
               <TouchableOpacity 
