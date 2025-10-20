@@ -11,6 +11,9 @@ import SetReminderScreen from '../screens/SetReminderScreen';
 import ScanReceiptScreen from '../screens/ScanReceiptScreen';
 import AddEventScreen from '../screens/AddEventScreen';
 import ViewTasksScreen from '../screens/ViewTasksScreen';
+import ChatScreen from '../screens/ChatScreen';
+import APIKeySetupScreen from '../screens/APIKeySetupScreen';
+import AIProviderSetupScreen from '../screens/AIProviderSetupScreen';
 
 const Stack = createStackNavigator();
 
@@ -29,6 +32,9 @@ export default function MainTabs() {
       <Stack.Screen name="ScanReceipt" component={ScanReceiptScreen} />
       <Stack.Screen name="AddEvent" component={AddEventScreen} />
       <Stack.Screen name="ViewTasks" component={ViewTasksScreen} />
+      <Stack.Screen name="Chat" component={ChatScreen} />
+      <Stack.Screen name="APIKeySetup" component={APIKeySetupScreen} />
+      <Stack.Screen name="AIProviderSetup" component={AIProviderSetupScreen} />
     </Stack.Navigator>
   );
 }

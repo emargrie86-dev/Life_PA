@@ -14,9 +14,11 @@ import Layout from '../components/Layout';
 import AppHeader from '../components/AppHeader';
 import ButtonPrimary from '../components/ButtonPrimary';
 import CardContainer from '../components/CardContainer';
+import Toast from '../components/Toast';
 import { colors } from '../theme/colors';
 import { fonts } from '../theme/fonts';
 import { getAllCategories } from '../theme/categories';
+import { addTask } from '../services/taskService';
 
 export default function SetReminderScreen({ navigation }) {
   const [title, setTitle] = useState('');
@@ -28,8 +30,22 @@ export default function SetReminderScreen({ navigation }) {
   const [selectedCategory, setSelectedCategory] = useState('personal');
   const [priority, setPriority] = useState('medium');
   const [isRecurring, setIsRecurring] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastType, setToastType] = useState('success');
 
   const categories = getAllCategories();
+
+  const resetForm = () => {
+    setTitle('');
+    setDescription('');
+    setDate(new Date());
+    setTime(new Date());
+    setSelectedCategory('personal');
+    setPriority('medium');
+    setIsRecurring(false);
+  };
   const priorities = [
     { id: 'high', name: 'High', color: '#EF4444' },
     { id: 'medium', name: 'Medium', color: '#F59E0B' },
@@ -50,28 +66,53 @@ export default function SetReminderScreen({ navigation }) {
     }
   };
 
-  const handleSaveReminder = () => {
+  const handleSaveReminder = async () => {
     if (!title.trim()) {
-      Alert.alert('Validation Error', 'Please enter a reminder title');
+      setToastMessage('Please enter a reminder title');
+      setToastType('error');
+      setShowToast(true);
       return;
     }
 
-    // TODO: Save reminder to database
-    console.log('Saving reminder:', {
-      title,
-      description,
-      date,
-      time,
-      category: selectedCategory,
-      priority,
-      isRecurring,
-    });
+    setIsSaving(true);
 
-    Alert.alert(
-      'Success',
-      'Reminder created successfully!',
-      [{ text: 'OK', onPress: () => navigation.goBack() }]
-    );
+    try {
+      // Combine date and time into a single datetime
+      const combinedDateTime = new Date(
+        date.getFullYear(),
+        date.getMonth(),
+        date.getDate(),
+        time.getHours(),
+        time.getMinutes()
+      );
+
+      const newTask = {
+        title: title.trim(),
+        description: description.trim(),
+        dueDate: combinedDateTime,
+        categoryId: selectedCategory,
+        priority,
+        isRecurring,
+      };
+
+      await addTask(newTask);
+
+      // Show success toast and reset form
+      setToastMessage('Reminder created successfully!');
+      setToastType('success');
+      setShowToast(true);
+      setIsSaving(false);
+      
+      // Reset form to blank state
+      resetForm();
+    } catch (error) {
+      console.error('Error saving reminder:', error);
+      setIsSaving(false);
+      
+      setToastMessage('Failed to create reminder. Please try again.');
+      setToastType('error');
+      setShowToast(true);
+    }
   };
 
   const formatDate = (date) => {
@@ -93,6 +134,13 @@ export default function SetReminderScreen({ navigation }) {
   return (
     <Layout style={styles.layout}>
       <AppHeader title="Set Reminder" onBackPress={() => navigation.goBack()} />
+      
+      <Toast
+        message={toastMessage}
+        visible={showToast}
+        onHide={() => setShowToast(false)}
+        type={toastType}
+      />
       
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Title Input */}
@@ -257,9 +305,10 @@ export default function SetReminderScreen({ navigation }) {
 
         {/* Save Button */}
         <ButtonPrimary
-          title="Create Reminder"
+          title={isSaving ? "Creating Reminder..." : "Create Reminder"}
           onPress={handleSaveReminder}
           style={styles.saveButton}
+          disabled={isSaving}
         />
       </ScrollView>
     </Layout>

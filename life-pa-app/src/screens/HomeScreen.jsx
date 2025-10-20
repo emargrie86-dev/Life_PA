@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Modal, Alert, Platform } from 'react-native';
 import { MotiView } from 'moti';
 import { getCurrentUser, signOutUser } from '../services/auth';
@@ -8,44 +8,67 @@ import WeatherTile from '../components/WeatherTile';
 import { colors } from '../theme/colors';
 import { fonts } from '../theme/fonts';
 import { getCategoryById } from '../theme/categories';
+import { getTasks } from '../services/taskService';
 
 export default function HomeScreen({ navigation }) {
   const user = getCurrentUser();
   const [menuVisible, setMenuVisible] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [upcomingEvents, setUpcomingEvents] = useState([]);
 
-  // Mock upcoming events data
-  // categoryId should match one of the categories in src/theme/categories.js
-  const upcomingEvents = [
-    {
-      id: 1,
-      title: 'Team Meeting',
-      date: 'Today',
-      time: '2:00 PM',
-      categoryId: 'work',
-    },
-    {
-      id: 2,
-      title: 'Dentist Appointment',
-      date: 'Tomorrow',
-      time: '10:30 AM',
-      categoryId: 'appointments',
-    },
-    {
-      id: 3,
-      title: 'Birthday Party',
-      date: 'Saturday',
-      time: '6:00 PM',
-      categoryId: 'social',
-    },
-    {
-      id: 4,
-      title: 'Gym Session',
-      date: 'Sunday',
-      time: '8:00 AM',
-      categoryId: 'health',
-    },
-  ];
+  // Load upcoming tasks
+  useEffect(() => {
+    loadUpcomingEvents();
+  }, []);
+
+  // Reload when screen comes into focus
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      loadUpcomingEvents();
+    });
+    return unsubscribe;
+  }, [navigation]);
+
+  const loadUpcomingEvents = async () => {
+    try {
+      const tasks = await getTasks();
+      // Filter to only show incomplete tasks and sort by due date
+      const upcoming = tasks
+        .filter(task => !task.isCompleted)
+        .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
+        .slice(0, 4) // Show only first 4 upcoming tasks
+        .map(task => ({
+          id: task.id,
+          title: task.title,
+          date: formatEventDate(task.dueDate),
+          time: formatEventTime(task.dueDate),
+          categoryId: task.categoryId,
+        }));
+      setUpcomingEvents(upcoming);
+    } catch (error) {
+      console.error('Error loading upcoming events:', error);
+      setUpcomingEvents([]);
+    }
+  };
+
+  const formatEventDate = (date) => {
+    const now = new Date();
+    const eventDate = new Date(date);
+    const diffTime = eventDate - now;
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays < 0) return 'Overdue';
+    if (diffDays === 0) return 'Today';
+    if (diffDays === 1) return 'Tomorrow';
+    return eventDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+  };
+
+  const formatEventTime = (date) => {
+    return new Date(date).toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+  };
 
   const handleMenuPress = () => {
     setMenuVisible(true);
@@ -99,8 +122,7 @@ export default function HomeScreen({ navigation }) {
   };
 
   const handleAIAssistantPress = () => {
-    console.log('AI Assistant pressed');
-    // AI Assistant functionality will be implemented later
+    navigation.navigate('Chat');
   };
 
   return (
@@ -205,7 +227,7 @@ export default function HomeScreen({ navigation }) {
           {/* Section Header */}
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Upcoming Events</Text>
-            <TouchableOpacity>
+            <TouchableOpacity onPress={() => navigation.navigate('ViewTasks')}>
               <Text style={styles.viewAllText}>View All</Text>
             </TouchableOpacity>
           </View>
@@ -262,8 +284,8 @@ export default function HomeScreen({ navigation }) {
             /* Empty State Message */
             <View style={styles.emptyState}>
               <Text style={styles.emptyStateIcon}>📅</Text>
-              <Text style={styles.emptyStateText}>No upcoming events</Text>
-              <Text style={styles.emptyStateSubtext}>Your schedule is clear!</Text>
+              <Text style={styles.emptyStateText}>No upcoming tasks</Text>
+              <Text style={styles.emptyStateSubtext}>Create a reminder to get started</Text>
             </View>
           )}
         </CardContainer>

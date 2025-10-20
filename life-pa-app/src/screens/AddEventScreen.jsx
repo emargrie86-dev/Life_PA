@@ -14,9 +14,11 @@ import Layout from '../components/Layout';
 import AppHeader from '../components/AppHeader';
 import ButtonPrimary from '../components/ButtonPrimary';
 import CardContainer from '../components/CardContainer';
+import Toast from '../components/Toast';
 import { colors } from '../theme/colors';
 import { fonts } from '../theme/fonts';
 import { getAllCategories } from '../theme/categories';
+import { addTask } from '../services/taskService';
 
 export default function AddEventScreen({ navigation }) {
   const [title, setTitle] = useState('');
@@ -28,8 +30,22 @@ export default function AddEventScreen({ navigation }) {
   const [showEndDatePicker, setShowEndDatePicker] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('personal');
   const [isAllDay, setIsAllDay] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastType, setToastType] = useState('success');
 
   const categories = getAllCategories();
+
+  const resetForm = () => {
+    setTitle('');
+    setDescription('');
+    setLocation('');
+    setStartDate(new Date());
+    setEndDate(new Date(Date.now() + 3600000));
+    setSelectedCategory('personal');
+    setIsAllDay(false);
+  };
 
   const handleStartDateChange = (event, selectedDate) => {
     setShowStartDatePicker(Platform.OS === 'ios');
@@ -49,33 +65,52 @@ export default function AddEventScreen({ navigation }) {
     }
   };
 
-  const handleSaveEvent = () => {
+  const handleSaveEvent = async () => {
     if (!title.trim()) {
-      Alert.alert('Validation Error', 'Please enter an event title');
+      setToastMessage('Please enter an event title');
+      setToastType('error');
+      setShowToast(true);
       return;
     }
 
     if (endDate <= startDate && !isAllDay) {
-      Alert.alert('Validation Error', 'End time must be after start time');
+      setToastMessage('End time must be after start time');
+      setToastType('error');
+      setShowToast(true);
       return;
     }
 
-    // TODO: Save event to database
-    console.log('Saving event:', {
-      title,
-      description,
-      location,
-      startDate,
-      endDate,
-      category: selectedCategory,
-      isAllDay,
-    });
+    setIsSaving(true);
 
-    Alert.alert(
-      'Success',
-      'Event created successfully!',
-      [{ text: 'OK', onPress: () => navigation.goBack() }]
-    );
+    try {
+      const newTask = {
+        title: title.trim(),
+        description: description.trim() + (location ? `\n📍 ${location}` : ''),
+        dueDate: startDate,
+        categoryId: selectedCategory,
+        priority: 'medium', // Default priority for events
+        isAllDay,
+        endDate: endDate, // Store end date for future use
+      };
+
+      await addTask(newTask);
+
+      // Show success toast and reset form
+      setToastMessage('Event created successfully!');
+      setToastType('success');
+      setShowToast(true);
+      setIsSaving(false);
+      
+      // Reset form to blank state
+      resetForm();
+    } catch (error) {
+      console.error('Error saving event:', error);
+      setIsSaving(false);
+      
+      setToastMessage('Failed to create event. Please try again.');
+      setToastType('error');
+      setShowToast(true);
+    }
   };
 
   const formatDateTime = (date) => {
@@ -91,6 +126,13 @@ export default function AddEventScreen({ navigation }) {
   return (
     <Layout style={styles.layout}>
       <AppHeader title="Add Event" onBackPress={() => navigation.goBack()} />
+      
+      <Toast
+        message={toastMessage}
+        visible={showToast}
+        onHide={() => setShowToast(false)}
+        type={toastType}
+      />
       
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Title Input */}
@@ -246,9 +288,10 @@ export default function AddEventScreen({ navigation }) {
 
         {/* Save Button */}
         <ButtonPrimary
-          title="Create Event"
+          title={isSaving ? "Creating Event..." : "Create Event"}
           onPress={handleSaveEvent}
           style={styles.saveButton}
+          disabled={isSaving}
         />
       </ScrollView>
     </Layout>

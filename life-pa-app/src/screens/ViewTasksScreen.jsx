@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   StyleSheet, 
   Text, 
   View, 
   ScrollView, 
   TouchableOpacity,
-  TextInput 
+  TextInput,
+  ActivityIndicator 
 } from 'react-native';
 import Layout from '../components/Layout';
 import AppHeader from '../components/AppHeader';
@@ -13,73 +14,62 @@ import CardContainer from '../components/CardContainer';
 import { colors } from '../theme/colors';
 import { fonts } from '../theme/fonts';
 import { getCategoryById } from '../theme/categories';
+import { getTasks, deleteTask, toggleTaskCompletion } from '../services/taskService';
 
 export default function ViewTasksScreen({ navigation }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('all'); // all, active, completed
   const [filterCategory, setFilterCategory] = useState('all');
+  const [tasks, setTasks] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Mock tasks data
-  const mockTasks = [
-    {
-      id: 1,
-      title: 'Complete project proposal',
-      description: 'Finish the Q4 project proposal document',
-      dueDate: new Date('2025-10-20T14:00:00'),
-      categoryId: 'work',
-      priority: 'high',
-      isCompleted: false,
-    },
-    {
-      id: 2,
-      title: 'Buy groceries',
-      description: 'Milk, eggs, bread, vegetables',
-      dueDate: new Date('2025-10-19T18:00:00'),
-      categoryId: 'shopping',
-      priority: 'medium',
-      isCompleted: false,
-    },
-    {
-      id: 3,
-      title: 'Gym workout',
-      description: 'Leg day - squats and deadlifts',
-      dueDate: new Date('2025-10-18T19:00:00'),
-      categoryId: 'health',
-      priority: 'medium',
-      isCompleted: true,
-    },
-    {
-      id: 4,
-      title: 'Call dentist',
-      description: 'Schedule teeth cleaning appointment',
-      dueDate: new Date('2025-10-21T10:00:00'),
-      categoryId: 'appointments',
-      priority: 'low',
-      isCompleted: false,
-    },
-    {
-      id: 5,
-      title: 'Review presentation',
-      description: 'Review slides for Monday meeting',
-      dueDate: new Date('2025-10-22T09:00:00'),
-      categoryId: 'work',
-      priority: 'high',
-      isCompleted: false,
-    },
-  ];
+  // Load tasks when component mounts
+  useEffect(() => {
+    loadTasks();
+  }, []);
 
-  const [tasks, setTasks] = useState(mockTasks);
+  // Reload tasks when screen comes into focus
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      loadTasks();
+    });
+    return unsubscribe;
+  }, [navigation]);
 
-  const handleToggleComplete = (taskId) => {
-    setTasks(tasks.map(task => 
-      task.id === taskId 
-        ? { ...task, isCompleted: !task.isCompleted }
-        : task
-    ));
+  const loadTasks = async () => {
+    try {
+      setLoading(true);
+      const loadedTasks = await getTasks();
+      setTasks(loadedTasks);
+    } catch (error) {
+      console.error('Error loading tasks:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleDeleteTask = (taskId) => {
-    setTasks(tasks.filter(task => task.id !== taskId));
+  const handleToggleComplete = async (taskId) => {
+    try {
+      await toggleTaskCompletion(taskId);
+      // Update local state
+      setTasks(tasks.map(task => 
+        task.id === taskId 
+          ? { ...task, isCompleted: !task.isCompleted }
+          : task
+      ));
+    } catch (error) {
+      console.error('Error toggling task:', error);
+    }
+  };
+
+  const handleDeleteTask = async (taskId) => {
+    try {
+      await deleteTask(taskId);
+      // Update local state
+      setTasks(tasks.filter(task => task.id !== taskId));
+    } catch (error) {
+      console.error('Error deleting task:', error);
+    }
   };
 
   // Filter tasks
@@ -121,6 +111,12 @@ export default function ViewTasksScreen({ navigation }) {
     <Layout style={styles.layout}>
       <AppHeader title="View Tasks" onBackPress={() => navigation.goBack()} />
       
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={styles.loadingText}>Loading tasks...</Text>
+        </View>
+      ) : (
       <View style={styles.content}>
         {/* Stats Cards */}
         <View style={styles.statsContainer}>
@@ -303,6 +299,7 @@ export default function ViewTasksScreen({ navigation }) {
           )}
         </ScrollView>
       </View>
+      )}
     </Layout>
   );
 }
@@ -310,6 +307,18 @@ export default function ViewTasksScreen({ navigation }) {
 const styles = StyleSheet.create({
   layout: {
     padding: 0,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: fonts.sizes.body,
+    color: colors.text,
+    opacity: 0.7,
   },
   content: {
     flex: 1,

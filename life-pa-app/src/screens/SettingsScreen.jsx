@@ -9,6 +9,12 @@ import { fonts } from '../theme/fonts';
 export default function SettingsScreen({ navigation }) {
   const settingsSections = [
     {
+      title: 'AI Assistant',
+      items: [
+        { label: 'AI Provider & API Keys', icon: '🤖', action: 'navigate', target: 'AIProviderSetup' },
+      ]
+    },
+    {
       title: 'Account',
       items: [
         { label: 'Email & Password', icon: '🔐' },
@@ -34,9 +40,13 @@ export default function SettingsScreen({ navigation }) {
     }
   ];
 
-  const handleSettingPress = (label) => {
-    console.log(`Setting pressed: ${label}`);
-    // Settings functionality will be implemented in future updates
+  const handleSettingPress = (item) => {
+    if (item.action === 'navigate' && item.target) {
+      navigation.navigate(item.target);
+    } else {
+      console.log(`Setting pressed: ${item.label}`);
+      // Settings functionality will be implemented in future updates
+    }
   };
 
   return (
@@ -58,7 +68,7 @@ export default function SettingsScreen({ navigation }) {
                     styles.settingItem,
                     itemIndex < section.items.length - 1 && styles.settingItemBorder
                   ]}
-                  onPress={() => handleSettingPress(item.label)}
+                  onPress={() => handleSettingPress(item)}
                   activeOpacity={0.7}
                 >
                   <View style={styles.settingLeft}>

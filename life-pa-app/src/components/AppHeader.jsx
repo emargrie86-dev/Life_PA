@@ -1,9 +1,12 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { colors } from '../theme/colors';
 import { fonts } from '../theme/fonts';
 
-export default function AppHeader({ title, onBackPress, rightAction }) {
+export default function AppHeader({ title, onBackPress, rightAction, showCloseButton = true }) {
+  const navigation = useNavigation();
+
   return (
     <View style={styles.header}>
       <View style={styles.left}>
@@ -17,7 +20,17 @@ export default function AppHeader({ title, onBackPress, rightAction }) {
       <Text style={styles.title}>{title}</Text>
       
       <View style={styles.right}>
-        {rightAction}
+        {rightAction ? (
+          rightAction
+        ) : showCloseButton ? (
+          <TouchableOpacity 
+            onPress={() => navigation.navigate('Home')} 
+            style={styles.closeButton}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.closeText}>✕</Text>
+          </TouchableOpacity>
+        ) : null}
       </View>
     </View>
   );
@@ -55,6 +68,20 @@ const styles = StyleSheet.create({
   backText: {
     fontSize: 24,
     color: colors.primary,
+  },
+  closeButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  closeText: {
+    fontSize: 20,
+    color: colors.surface,
+    fontWeight: '300',
+    lineHeight: 20,
   },
 });
 
