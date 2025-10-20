@@ -211,7 +211,7 @@ export default function ChatScreen({ navigation, route }) {
         if (scanAction) {
           // Navigate to scan receipt screen after a short delay
           setTimeout(() => {
-            navigation.navigate('ScanReceipt');
+            navigation.navigate('UploadDocument');
           }, 1000);
         }
       } else {

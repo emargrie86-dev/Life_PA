@@ -8,9 +8,11 @@ import {
   query, 
   where, 
   getDocs, 
+  getDoc,
   doc, 
   updateDoc, 
   deleteDoc,
+  addDoc,
   orderBy 
 } from 'firebase/firestore';
 
@@ -91,14 +93,110 @@ export const getTasks = async () => {
 };
 
 /**
- * Add a new task (not used by AI, but kept for manual task creation)
+ * Get a single task by ID
+ * @param {string} taskId - Task ID
+ * @returns {Promise<Object>}
+ */
+export const getTask = async (taskId) => {
+  try {
+    const user = getCurrentUser();
+    if (!user) {
+      throw new Error('User not authenticated');
+    }
+
+    // Try to get from events collection first
+    try {
+      const eventRef = doc(db, 'events', taskId);
+      const eventSnap = await getDoc(eventRef);
+      
+      if (eventSnap.exists()) {
+        return {
+          id: eventSnap.id,
+          type: 'event',
+          ...eventSnap.data(),
+        };
+      }
+    } catch (error) {
+      console.log('Task not found in events collection:', error);
+    }
+
+    // Try reminders collection
+    try {
+      const reminderRef = doc(db, 'reminders', taskId);
+      const reminderSnap = await getDoc(reminderRef);
+      
+      if (reminderSnap.exists()) {
+        return {
+          id: reminderSnap.id,
+          type: 'reminder',
+          ...reminderSnap.data(),
+        };
+      }
+    } catch (error) {
+      console.log('Task not found in reminders collection:', error);
+    }
+
+    throw new Error('Task not found');
+  } catch (error) {
+    console.error('Error getting task:', error);
+    throw error;
+  }
+};
+
+/**
+ * Add a new task (for manual task creation through UI)
  * @param {Object} task 
  * @returns {Promise<Object>}
  */
 export const addTask = async (task) => {
-  // This function is for manual task creation through the UI
-  // AI uses the functionExecutor service directly
-  throw new Error('Use AddEventScreen or SetReminderScreen for manual task creation');
+  try {
+    const user = getCurrentUser();
+    if (!user) {
+      throw new Error('User not authenticated');
+    }
+
+    console.log('Adding task manually:', task);
+
+    // Determine if it's an event or reminder based on the type field
+    const collectionName = task.type === 'event' ? 'events' : 'reminders';
+    
+    // Convert dueDate to datetime, date, and time fields for consistency
+    const dueDateTime = task.dueDate instanceof Date ? task.dueDate : new Date(task.dueDate);
+    const dateStr = dueDateTime.toISOString().split('T')[0]; // YYYY-MM-DD
+    const timeStr = dueDateTime.toTimeString().split(' ')[0].substring(0, 5); // HH:MM
+    
+    // Prepare task data with proper field names
+    const taskData = {
+      ...task,
+      userId: user.uid,
+      datetime: dueDateTime,  // Main datetime field for querying
+      date: dateStr,          // Date string for display
+      time: timeStr,          // Time string for display
+      category: task.categoryId || 'other',  // Add category field
+      isCompleted: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      createdBy: 'manual',
+    };
+
+    console.log('Saving task data:', {
+      ...taskData,
+      datetime: taskData.datetime.toISOString(),
+    });
+
+    // Add to appropriate Firestore collection
+    const docRef = await addDoc(collection(db, collectionName), taskData);
+    console.log(`✅ ${task.type} created successfully with ID:`, docRef.id);
+
+    return {
+      success: true,
+      id: docRef.id,
+      message: `${task.type === 'event' ? 'Event' : 'Reminder'} created successfully`,
+    };
+  } catch (error) {
+    console.error('Error adding task:', error);
+    throw error;
+  }
 };
 
 /**

@@ -9,22 +9,26 @@ import { colors } from '../theme/colors';
 import { fonts } from '../theme/fonts';
 import { getCategoryById } from '../theme/categories';
 import { getTasks } from '../services/taskService';
+import { getUserReceipts } from '../services/receiptService';
 
 export default function HomeScreen({ navigation }) {
   const user = getCurrentUser();
   const [menuVisible, setMenuVisible] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [upcomingEvents, setUpcomingEvents] = useState([]);
+  const [upcomingExpenses, setUpcomingExpenses] = useState([]);
 
-  // Load upcoming tasks
+  // Load upcoming tasks and expenses
   useEffect(() => {
     loadUpcomingEvents();
+    loadUpcomingExpenses();
   }, []);
 
   // Reload when screen comes into focus
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
       loadUpcomingEvents();
+      loadUpcomingExpenses();
     });
     return unsubscribe;
   }, [navigation]);
@@ -68,6 +72,57 @@ export default function HomeScreen({ navigation }) {
       hour: 'numeric',
       minute: '2-digit',
     });
+  };
+
+  const loadUpcomingExpenses = async () => {
+    try {
+      if (!user) return;
+      
+      const receipts = await getUserReceipts(user.uid, 100);
+      
+      // Filter receipts with due dates and show upcoming/overdue ones
+      const now = new Date();
+      const upcoming = receipts
+        .filter(receipt => receipt.dueDate && receipt.dueDate.toDate)
+        .map(receipt => ({
+          id: receipt.id,
+          merchantName: receipt.merchantName,
+          amount: receipt.totalAmount,
+          currency: receipt.currency,
+          dueDate: receipt.dueDate.toDate(),
+          category: receipt.category,
+          isRecurring: receipt.isRecurring,
+        }))
+        .sort((a, b) => a.dueDate - b.dueDate)
+        .slice(0, 4); // Show only first 4 upcoming expenses
+      
+      setUpcomingExpenses(upcoming);
+    } catch (error) {
+      console.error('Error loading upcoming expenses:', error);
+      setUpcomingExpenses([]);
+    }
+  };
+
+  const getCurrencySymbol = (currencyCode) => {
+    const symbols = {
+      'USD': '$', 'EUR': '€', 'GBP': '£', 'CAD': 'C$', 'AUD': 'A$',
+      'JPY': '¥', 'CNY': '¥', 'INR': '₹',
+    };
+    return symbols[currencyCode] || currencyCode || '$';
+  };
+
+  const getCategoryColor = (category) => {
+    const colors = {
+      'Groceries': '#4CAF50',
+      'Dining': '#FF9800',
+      'Transport': '#2196F3',
+      'Shopping': '#E91E63',
+      'Healthcare': '#9C27B0',
+      'Entertainment': '#00BCD4',
+      'Utilities': '#795548',
+      'Other': '#757575',
+    };
+    return colors[category] || colors.Other;
   };
 
   const handleMenuPress = () => {
@@ -125,6 +180,10 @@ export default function HomeScreen({ navigation }) {
     navigation.navigate('Chat');
   };
 
+  const handleEventPress = (event) => {
+    navigation.navigate('TaskDetail', { taskId: event.id });
+  };
+
   return (
     <Layout style={styles.layout}>
       {/* Custom Header with Menu Button */}
@@ -153,6 +212,7 @@ export default function HomeScreen({ navigation }) {
 
         {/* Quick Action Buttons */}
         <View style={styles.quickActionsGrid}>
+          {/* 1. Add Event */}
           <MotiView
             from={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -160,41 +220,7 @@ export default function HomeScreen({ navigation }) {
           >
             <TouchableOpacity 
               style={styles.quickActionButton}
-              onPress={() => navigation.navigate('SetReminder')}
-              activeOpacity={0.7}
-            >
-              <View style={[styles.quickActionIcon, { backgroundColor: colors.primary + '20' }]}>
-                <Text style={styles.quickActionEmoji}>🔔</Text>
-              </View>
-              <Text style={styles.quickActionText}>Set Reminder</Text>
-            </TouchableOpacity>
-          </MotiView>
-
-          <MotiView
-            from={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ type: 'spring', damping: 15, delay: 200 }}
-          >
-            <TouchableOpacity 
-              style={styles.quickActionButton}
-              onPress={() => navigation.navigate('ScanReceipt')}
-              activeOpacity={0.7}
-            >
-              <View style={[styles.quickActionIcon, { backgroundColor: colors.primary + '20' }]}>
-                <Text style={styles.quickActionEmoji}>📄</Text>
-              </View>
-              <Text style={styles.quickActionText}>Scan Receipt</Text>
-            </TouchableOpacity>
-          </MotiView>
-
-          <MotiView
-            from={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ type: 'spring', damping: 15, delay: 300 }}
-          >
-            <TouchableOpacity 
-              style={styles.quickActionButton}
-              onPress={() => navigation.navigate('AddEvent')}
+              onPress={() => navigation.navigate('AddEvent', { type: 'event' })}
               activeOpacity={0.7}
             >
               <View style={[styles.quickActionIcon, { backgroundColor: colors.primary + '20' }]}>
@@ -204,10 +230,29 @@ export default function HomeScreen({ navigation }) {
             </TouchableOpacity>
           </MotiView>
 
+          {/* 2. Add Task */}
           <MotiView
             from={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
-            transition={{ type: 'spring', damping: 15, delay: 400 }}
+            transition={{ type: 'spring', damping: 15, delay: 200 }}
+          >
+            <TouchableOpacity 
+              style={styles.quickActionButton}
+              onPress={() => navigation.navigate('AddEvent', { type: 'task' })}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.quickActionIcon, { backgroundColor: colors.primary + '20' }]}>
+                <Text style={styles.quickActionEmoji}>📝</Text>
+              </View>
+              <Text style={styles.quickActionText}>Add Task</Text>
+            </TouchableOpacity>
+          </MotiView>
+
+          {/* 3. View Tasks */}
+          <MotiView
+            from={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ type: 'spring', damping: 15, delay: 300 }}
           >
             <TouchableOpacity 
               style={styles.quickActionButton}
@@ -218,6 +263,42 @@ export default function HomeScreen({ navigation }) {
                 <Text style={styles.quickActionEmoji}>✓</Text>
               </View>
               <Text style={styles.quickActionText}>View Tasks</Text>
+            </TouchableOpacity>
+          </MotiView>
+
+          {/* 4. Upload Document */}
+          <MotiView
+            from={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ type: 'spring', damping: 15, delay: 400 }}
+          >
+            <TouchableOpacity 
+              style={styles.quickActionButton}
+              onPress={() => navigation.navigate('UploadDocument')}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.quickActionIcon, { backgroundColor: colors.primary + '20' }]}>
+                <Text style={styles.quickActionEmoji}>📄</Text>
+              </View>
+              <Text style={styles.quickActionText}>Upload Document</Text>
+            </TouchableOpacity>
+          </MotiView>
+
+          {/* 5. View Documents */}
+          <MotiView
+            from={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ type: 'spring', damping: 15, delay: 500 }}
+          >
+            <TouchableOpacity 
+              style={styles.quickActionButton}
+              onPress={() => navigation.navigate('ReceiptsList')}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.quickActionIcon, { backgroundColor: colors.accent + '20' }]}>
+                <Text style={styles.quickActionEmoji}>🧾</Text>
+              </View>
+              <Text style={styles.quickActionText}>View Documents</Text>
             </TouchableOpacity>
           </MotiView>
         </View>
@@ -250,7 +331,7 @@ export default function HomeScreen({ navigation }) {
                 >
                   <TouchableOpacity 
                     activeOpacity={0.7}
-                    onPress={() => console.log(`Event pressed: ${event.title}`)}
+                    onPress={() => handleEventPress(event)}
                   >
                     <View style={[styles.eventCard, !isLastItem && styles.eventCardWithBorder]}>
                       <View style={styles.eventContent}>
@@ -286,6 +367,79 @@ export default function HomeScreen({ navigation }) {
               <Text style={styles.emptyStateIcon}>📅</Text>
               <Text style={styles.emptyStateText}>No upcoming tasks</Text>
               <Text style={styles.emptyStateSubtext}>Create a reminder to get started</Text>
+            </View>
+          )}
+        </CardContainer>
+
+        {/* Upcoming Expenses Wrapper */}
+        <CardContainer elevated style={styles.eventsWrapper}>
+          {/* Section Header */}
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Upcoming Expenses</Text>
+            <TouchableOpacity onPress={() => navigation.navigate('ReceiptsList')}>
+              <Text style={styles.viewAllText}>View All</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Expense Tiles */}
+          {upcomingExpenses.length > 0 ? (
+            upcomingExpenses.map((expense, index) => {
+              const isLastItem = index === upcomingExpenses.length - 1;
+              const categoryColor = getCategoryColor(expense.category);
+              return (
+                <MotiView
+                  key={expense.id}
+                  from={{ opacity: 0, translateX: -20 }}
+                  animate={{ opacity: 1, translateX: 0 }}
+                  transition={{ 
+                    type: 'timing', 
+                    duration: 400, 
+                    delay: 500 + (index * 100) 
+                  }}
+                >
+                  <TouchableOpacity 
+                    activeOpacity={0.7}
+                    onPress={() => navigation.navigate('ReceiptDetail', { receiptId: expense.id })}
+                  >
+                    <View style={[styles.eventCard, !isLastItem && styles.eventCardWithBorder]}>
+                      <View style={styles.eventContent}>
+                        <View style={[styles.eventIconContainer, { backgroundColor: categoryColor + '20' }]}>
+                          <Text style={styles.eventIcon}>💰</Text>
+                        </View>
+                        
+                        <View style={styles.eventDetails}>
+                          <Text style={styles.eventTitle}>{expense.merchantName}</Text>
+                          <View style={styles.eventMeta}>
+                            <Text style={styles.eventDate}>{formatEventDate(expense.dueDate)}</Text>
+                            {expense.isRecurring && (
+                              <Text style={styles.eventTime}>• 🔄 Recurring</Text>
+                            )}
+                          </View>
+                          <View style={[styles.eventCategory, { backgroundColor: categoryColor + '15' }]}>
+                            <Text style={[styles.eventCategoryText, { color: categoryColor }]}>
+                              {expense.category || 'Other'}
+                            </Text>
+                          </View>
+                        </View>
+
+                        {/* Amount */}
+                        <View style={styles.expenseAmountContainer}>
+                          <Text style={styles.expenseAmount}>
+                            {getCurrencySymbol(expense.currency)}{expense.amount.toFixed(2)}
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                </MotiView>
+              );
+            })
+          ) : (
+            /* Empty State Message */
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyStateIcon}>💳</Text>
+              <Text style={styles.emptyStateText}>No upcoming expenses</Text>
+              <Text style={styles.emptyStateSubtext}>Upload a document with a due date</Text>
             </View>
           )}
         </CardContainer>
@@ -545,6 +699,17 @@ const styles = StyleSheet.create({
     fontSize: 28,
     color: colors.text,
     opacity: 0.3,
+  },
+  expenseAmountContainer: {
+    marginLeft: 'auto',
+    paddingLeft: 12,
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+  },
+  expenseAmount: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.primary,
   },
   emptyState: {
     alignItems: 'center',

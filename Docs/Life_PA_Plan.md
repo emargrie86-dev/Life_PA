@@ -326,21 +326,33 @@ npm install react-native-modal
 
 **Objective:** Implement camera-based document scanning with OCR text extraction, allowing users to capture and digitize receipts, bills, and other documents.
 
+**Status:** ✅ Complete (with AI-powered parsing enhancement)
+
 **Tasks:**
 
-- [ ] Set up Expo Camera and image picker
-- [ ] Request camera and media library permissions
-- [ ] Create ScanScreen with camera preview
-- [ ] Implement photo capture functionality
-- [ ] Add image preview and retake options
-- [ ] Integrate open-source OCR (tesseract.js or expo-ocr)
-- [ ] Extract text from captured images
-- [ ] Format extracted text (detect dates, amounts, merchants)
-- [ ] Create receipt data structure and storage
-- [ ] Build receipt detail view
-- [ ] Add manual editing for OCR corrections
-- [ ] Implement receipt gallery/list view
-- [ ] Add receipt categorization (Groceries, Dining, Transport, etc.)
+- [x] Set up Expo Camera and image picker
+- [x] Request camera and media library permissions
+- [x] Create ScanScreen with camera preview
+- [x] Implement photo capture functionality
+- [x] Add image preview and retake options
+- [x] Integrate open-source OCR (tesseract.js)
+- [x] Extract text from captured images
+- [x] **AI-Powered Parsing**: Use OpenAI/Cohere/HuggingFace to intelligently extract receipt data
+- [x] Format extracted text (detect dates, amounts, merchants, currency)
+- [x] Create receipt data structure and storage
+- [x] Build receipt detail view
+- [x] Add manual editing for OCR corrections
+- [x] Implement receipt gallery/list view
+- [x] Add receipt categorization (Groceries, Dining, Transport, etc.)
+- [x] Document upload support (images and PDFs)
+- [x] Platform-specific handling (web vs mobile)
+- [x] Firebase Storage integration with CORS workaround
+
+**🤖 AI Enhancement:**
+- Receipts are now parsed using AI models for superior accuracy
+- Intelligently extracts merchant names, amounts, currency, dates, and categories
+- Falls back to basic regex parsing if AI is unavailable
+- See `AI_RECEIPT_PARSING.md` for details
 
 **Install Dependencies:**
 ```bash
@@ -673,7 +685,7 @@ service cloud.firestore {
 | 3 | ✅ Complete | UI Layout & Home | Dashboard, quick actions, theme, animations |
 | 4 | ✅ Complete | AI Chat Assistant | Multi-provider AI, tool calling, conversations |
 | 5 | 🔨 Build | Smart Reminders | Notifications, reminder CRUD, categories |
-| 6 | 📸 Build | Receipt Scanning | Camera, OCR, receipt storage |
+| 6 | ✅ Complete | Receipt Scanning | Camera, OCR, AI-powered parsing, storage |
 | 7 | 🗄️ Build | Data Management | Firestore rules, security, indexes |
 | 8 | 🎨 Build | UI Polish | Consistent styling, animations, themes |
 | 9 | 🔍 Build | Search & Settings | Search/filter, settings, profile, API keys |

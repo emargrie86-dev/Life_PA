@@ -31,9 +31,10 @@ export const executeFunction = async (functionName, parameters) => {
         console.log('Calling viewUpcomingTasks...');
         return await viewUpcomingTasks(parameters);
       
-      case 'scan_receipt':
-        console.log('Calling triggerReceiptScan...');
-        return await triggerReceiptScan();
+      case 'upload_document':
+      case 'scan_receipt': // backward compatibility
+        console.log('Calling triggerDocumentUpload...');
+        return await triggerDocumentUpload();
       
       default:
         throw new Error(`Unknown function: ${functionName}`);
@@ -233,14 +234,14 @@ const viewUpcomingTasks = async (params) => {
 };
 
 /**
- * Trigger receipt scanning
+ * Trigger document upload
  */
-const triggerReceiptScan = async () => {
-  // This function will be called to indicate the user should be redirected to the scan screen
+const triggerDocumentUpload = async () => {
+  // This function will be called to indicate the user should be redirected to the upload screen
   return {
     success: true,
     action: 'navigate_to_scan',
-    message: 'Opening receipt scanner...',
+    message: 'Opening document upload...',
   };
 };
 

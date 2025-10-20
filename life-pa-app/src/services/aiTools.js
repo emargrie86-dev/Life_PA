@@ -74,8 +74,8 @@ export const AI_TOOLS = [
     },
   },
   {
-    name: 'scan_receipt',
-    description: 'Trigger the receipt scanning feature to capture and save receipt information',
+    name: 'upload_document',
+    description: 'Trigger the document upload feature to capture and save receipt or document information',
     parameter_definitions: {},
   },
 ];
