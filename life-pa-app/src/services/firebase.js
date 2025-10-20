@@ -15,8 +15,8 @@ const firebaseConfig = {
   projectId: "life-pa-d1d6c",
   storageBucket: "life-pa-d1d6c.firebasestorage.app",
   messagingSenderId: "709387836577",
-  appId: "1:709387836577:web:b94119125f9d06ec4b24e0",
-  measurementId: "G-EXPWKXRVKM"
+  appId: "1:709387836577:web:aca0560b2a8c99d54b24e0",
+  measurementId: "G-JC2M2FWDRN"
 };
 
 // Initialize Firebase

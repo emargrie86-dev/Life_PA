@@ -13,20 +13,26 @@ import { parseNaturalDate, parseNaturalTime, getCurrentDateTimeContext } from '.
  * @returns {Promise<Object>} - Result of the function execution
  */
 export const executeFunction = async (functionName, parameters) => {
-  console.log('Executing function:', functionName, 'with parameters:', parameters);
+  console.log('=== EXECUTING FUNCTION ===');
+  console.log('Function name:', functionName);
+  console.log('Parameters:', JSON.stringify(parameters, null, 2));
   
   try {
     switch (functionName) {
       case 'create_event':
+        console.log('Calling createEvent...');
         return await createEvent(parameters);
       
       case 'set_reminder':
+        console.log('Calling setReminder...');
         return await setReminder(parameters);
       
       case 'view_upcoming_tasks':
+        console.log('Calling viewUpcomingTasks...');
         return await viewUpcomingTasks(parameters);
       
       case 'scan_receipt':
+        console.log('Calling triggerReceiptScan...');
         return await triggerReceiptScan();
       
       default:
@@ -46,19 +52,27 @@ export const executeFunction = async (functionName, parameters) => {
  * Create a calendar event
  */
 const createEvent = async (params) => {
+  console.log('=== CREATE EVENT FUNCTION ===');
+  console.log('Raw params received:', JSON.stringify(params, null, 2));
+  
   const user = getCurrentUser();
   if (!user) {
+    console.error('User not authenticated');
     throw new Error('User not authenticated');
   }
+  console.log('User authenticated:', user.uid);
 
   const { title, date, time, description, category } = params;
+  console.log('Extracted params:', { title, date, time, description, category });
   
   // Parse date and time
   const eventDate = parseNaturalDate(date);
   const eventTime = parseNaturalTime(time);
+  console.log('Parsed date:', eventDate, 'Parsed time:', eventTime);
   
   // Combine date and time into a Date object
   const eventDateTime = new Date(`${eventDate}T${eventTime}:00`);
+  console.log('Event datetime:', eventDateTime);
   
   // Create event in Firestore
   const eventData = {
@@ -72,17 +86,23 @@ const createEvent = async (params) => {
     createdAt: new Date(),
     createdBy: 'ai_assistant',
   };
+  
+  console.log('About to save event to Firestore:', JSON.stringify(eventData, null, 2));
 
-  const docRef = await addDoc(collection(db, 'events'), eventData);
-  
-  console.log('Event created:', docRef.id);
-  
-  return {
-    success: true,
-    eventId: docRef.id,
-    message: `Event "${title}" created for ${eventDate} at ${eventTime}`,
-    data: eventData,
-  };
+  try {
+    const docRef = await addDoc(collection(db, 'events'), eventData);
+    console.log('Event created successfully with ID:', docRef.id);
+    
+    return {
+      success: true,
+      eventId: docRef.id,
+      message: `Event "${title}" created for ${eventDate} at ${eventTime}`,
+      data: eventData,
+    };
+  } catch (error) {
+    console.error('Firestore error creating event:', error);
+    throw error;
+  }
 };
 
 /**

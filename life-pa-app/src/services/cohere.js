@@ -179,10 +179,17 @@ export const sendCohereChatMessage = async (messages, options = {}) => {
     }
 
     const data = await response.json();
-    console.log('Cohere response received');
+    console.log('Cohere response received:', JSON.stringify(data, null, 2));
     
     if (!data || !data.text) {
       throw new Error('No response from Cohere');
+    }
+
+    // Log tool calls if present
+    if (data.tool_calls) {
+      console.log('Cohere tool_calls detected:', JSON.stringify(data.tool_calls, null, 2));
+    } else {
+      console.log('No tool_calls in Cohere response');
     }
 
     // Return response object with text and tool calls

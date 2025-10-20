@@ -14,11 +14,11 @@ import CardContainer from '../components/CardContainer';
 import { colors } from '../theme/colors';
 import { fonts } from '../theme/fonts';
 import { getCategoryById } from '../theme/categories';
-import { getTasks, deleteTask, toggleTaskCompletion } from '../services/taskService';
+import { getTasks, deleteTask, toggleTaskCompletion, clearAllTasks } from '../services/taskService';
 
 export default function ViewTasksScreen({ navigation }) {
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterStatus, setFilterStatus] = useState('all'); // all, active, completed
+  const [filterStatus, setFilterStatus] = useState('active'); // all, active, completed
   const [filterCategory, setFilterCategory] = useState('all');
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -107,6 +107,19 @@ export default function ViewTasksScreen({ navigation }) {
     return `📅 ${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
   };
 
+  const handleClearAllTasks = async () => {
+    if (confirm('Delete ALL tasks? This cannot be undone!')) {
+      try {
+        await clearAllTasks();
+        await loadTasks();
+        alert('All tasks cleared!');
+      } catch (error) {
+        console.error('Error clearing tasks:', error);
+        alert('Failed to clear tasks');
+      }
+    }
+  };
+
   return (
     <Layout style={styles.layout}>
       <AppHeader title="View Tasks" onBackPress={() => navigation.goBack()} />
@@ -151,22 +164,6 @@ export default function ViewTasksScreen({ navigation }) {
           <TouchableOpacity
             style={[
               styles.filterButton,
-              filterStatus === 'all' && styles.filterButtonActive,
-            ]}
-            onPress={() => setFilterStatus('all')}
-          >
-            <Text
-              style={[
-                styles.filterButtonText,
-                filterStatus === 'all' && styles.filterButtonTextActive,
-              ]}
-            >
-              All
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.filterButton,
               filterStatus === 'active' && styles.filterButtonActive,
             ]}
             onPress={() => setFilterStatus('active')}
@@ -196,7 +193,31 @@ export default function ViewTasksScreen({ navigation }) {
               Completed
             </Text>
           </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.filterButton,
+              filterStatus === 'all' && styles.filterButtonActive,
+            ]}
+            onPress={() => setFilterStatus('all')}
+          >
+            <Text
+              style={[
+                styles.filterButtonText,
+                filterStatus === 'all' && styles.filterButtonTextActive,
+              ]}
+            >
+              All
+            </Text>
+          </TouchableOpacity>
         </View>
+
+        {/* Debug: Clear All Button - Only in development */}
+        <TouchableOpacity
+          style={styles.clearAllButton}
+          onPress={handleClearAllTasks}
+        >
+          <Text style={styles.clearAllButtonText}>🗑️ Clear All Tasks (Debug)</Text>
+        </TouchableOpacity>
 
         {/* Tasks List */}
         <ScrollView 
@@ -503,6 +524,19 @@ const styles = StyleSheet.create({
     color: colors.text,
     opacity: 0.6,
     textAlign: 'center',
+  },
+  clearAllButton: {
+    backgroundColor: '#EF4444',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  clearAllButtonText: {
+    color: colors.surface,
+    fontSize: fonts.sizes.body,
+    fontWeight: '600',
   },
 });
 

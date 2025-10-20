@@ -155,11 +155,14 @@ export default function ChatScreen({ navigation, route }) {
 
       // Get AI response with tools
       console.log('Sending message with tools enabled');
+      console.log('Tools being sent:', JSON.stringify(AI_TOOLS, null, 2));
       const aiResponse = await sendChatMessage(aiMessages, { tools: AI_TOOLS });
+      console.log('AI Response received:', JSON.stringify(aiResponse, null, 2));
 
       // Check if AI wants to use tools
       if (aiResponse.tool_calls && aiResponse.tool_calls.length > 0) {
-        console.log('AI requested tool calls:', aiResponse.tool_calls);
+        console.log('=== AI REQUESTED TOOL CALLS ===');
+        console.log('Tool calls:', JSON.stringify(aiResponse.tool_calls, null, 2));
 
         // Add intermediate AI message if there's text
         if (aiResponse.text && aiResponse.text.trim()) {
@@ -175,8 +178,11 @@ export default function ChatScreen({ navigation, route }) {
         }
 
         // Execute tool calls
+        console.log('=== EXECUTING TOOL CALLS ===');
+        console.log('Tool calls to execute:', JSON.stringify(aiResponse.tool_calls, null, 2));
         const toolResults = await executeToolCalls(aiResponse.tool_calls);
-        console.log('Tool execution results:', toolResults);
+        console.log('=== TOOL EXECUTION RESULTS ===');
+        console.log('Results:', JSON.stringify(toolResults, null, 2));
 
         // Create a summary of tool execution for display
         const toolResultsSummary = toolResults.map(tr => {
@@ -210,6 +216,8 @@ export default function ChatScreen({ navigation, route }) {
         }
       } else {
         // No tool calls, just add the text response
+        console.log('=== NO TOOL CALLS ===');
+        console.log('Response text:', aiResponse.text || aiResponse);
         const aiMessage = {
           id: (Date.now() + 1).toString(),
           role: 'assistant',
