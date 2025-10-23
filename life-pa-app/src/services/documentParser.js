@@ -2,12 +2,10 @@
  * Document Parser Service
  * Handles document classification and structured data extraction
  * Supports multiple document types: Invoice, Utility Bill, Contact, MOT, Receipt, etc.
+ * Now exclusively uses Google Gemini 2.5 Flash
  */
 
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getChatCompletion as getCohereCompletion } from './cohere';
-import { getChatCompletion as getOpenAICompletion } from './openai';
-import { getChatCompletion as getHuggingFaceCompletion } from './huggingface';
+import { getChatCompletion as getGeminiCompletion } from './gemini';
 
 /**
  * Document types supported by the parser
@@ -38,50 +36,22 @@ export const classifyDocument = async (text) => {
   }
 
   try {
-    // Get the active AI provider
-    const activeProvider = await AsyncStorage.getItem('activeAIProvider') || 'openai';
-    console.log('Using AI provider for classification:', activeProvider);
+    console.log('Using Gemini AI for classification');
 
     // Create classification prompt
     const prompt = createClassificationPrompt(text);
 
-    // Get AI classification
-    let aiResponse;
-    switch (activeProvider) {
-      case 'openai':
-        aiResponse = await getOpenAICompletion([
-          {
-            role: 'system',
-            content: 'You are a document classification assistant. Analyze documents and classify them into categories. Return only the document type, nothing else.'
-          },
-          {
-            role: 'user',
-            content: prompt
-          }
-        ]);
-        break;
-      
-      case 'cohere':
-        aiResponse = await getCohereCompletion([
-          {
-            role: 'user',
-            content: prompt
-          }
-        ]);
-        break;
-      
-      case 'huggingface':
-        aiResponse = await getHuggingFaceCompletion([
-          {
-            role: 'user',
-            content: prompt
-          }
-        ]);
-        break;
-      
-      default:
-        throw new Error('Invalid AI provider');
-    }
+    // Get AI classification from Gemini
+    const aiResponse = await getGeminiCompletion([
+      {
+        role: 'system',
+        content: 'You are a document classification assistant. Analyze documents and classify them into categories. Return only the document type, nothing else.'
+      },
+      {
+        role: 'user',
+        content: prompt
+      }
+    ]);
 
     console.log('Classification response:', aiResponse);
 
@@ -184,50 +154,22 @@ export const extractDocumentData = async (text, documentType) => {
   }
 
   try {
-    // Get the active AI provider
-    const activeProvider = await AsyncStorage.getItem('activeAIProvider') || 'openai';
-    console.log('Using AI provider for extraction:', activeProvider);
+    console.log('Using Gemini AI for extraction');
 
     // Create extraction prompt based on document type
     const prompt = createExtractionPrompt(text, documentType);
 
-    // Get AI extraction
-    let aiResponse;
-    switch (activeProvider) {
-      case 'openai':
-        aiResponse = await getOpenAICompletion([
-          {
-            role: 'system',
-            content: 'You are a document data extraction assistant. Extract structured data from documents and return it as valid JSON. Be accurate and precise.'
-          },
-          {
-            role: 'user',
-            content: prompt
-          }
-        ]);
-        break;
-      
-      case 'cohere':
-        aiResponse = await getCohereCompletion([
-          {
-            role: 'user',
-            content: prompt
-          }
-        ]);
-        break;
-      
-      case 'huggingface':
-        aiResponse = await getHuggingFaceCompletion([
-          {
-            role: 'user',
-            content: prompt
-          }
-        ]);
-        break;
-      
-      default:
-        throw new Error('Invalid AI provider');
-    }
+    // Get AI extraction from Gemini
+    const aiResponse = await getGeminiCompletion([
+      {
+        role: 'system',
+        content: 'You are a document data extraction assistant. Extract structured data from documents and return it as valid JSON. Be accurate and precise.'
+      },
+      {
+        role: 'user',
+        content: prompt
+      }
+    ]);
 
     console.log('Extraction response received:', aiResponse?.substring(0, 200));
 
@@ -513,11 +455,9 @@ export const parseDocument = async (text) => {
  */
 export const isDocumentParsingAvailable = async () => {
   try {
-    const provider = await AsyncStorage.getItem('activeAIProvider');
-    const apiKey = await AsyncStorage.getItem(`${provider}ApiKey`);
-    return provider && apiKey;
+    const { getGeminiClient } = require('./gemini');
+    return getGeminiClient() !== null;
   } catch (error) {
     return false;
   }
 };
-

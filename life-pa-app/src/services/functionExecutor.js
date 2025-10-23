@@ -1,10 +1,13 @@
 // Function Executor Service
 // Executes AI tool calls and interacts with app features
+// Now with comprehensive validation and error handling
 
 import { db } from './firebase';
 import { getCurrentUser } from './auth';
 import { collection, addDoc, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
 import { parseNaturalDate, parseNaturalTime, getCurrentDateTimeContext } from './aiTools';
+import { validateEventParams, validateReminderParams, ValidationError } from '../utils/validation';
+import { handleAsyncOperation, getUserFriendlyError } from '../utils/errorHandler';
 
 /**
  * Execute a function call from the AI
@@ -50,49 +53,70 @@ export const executeFunction = async (functionName, parameters) => {
 };
 
 /**
- * Create a calendar event
+ * Create a calendar event with validation
  */
 const createEvent = async (params) => {
   console.log('=== CREATE EVENT FUNCTION ===');
   console.log('Raw params received:', JSON.stringify(params, null, 2));
   
+  // Check authentication
   const user = getCurrentUser();
   if (!user) {
-    console.error('User not authenticated');
-    throw new Error('User not authenticated');
+    throw new Error('User not authenticated. Please log in to create events.');
   }
-  console.log('User authenticated:', user.uid);
 
   const { title, date, time, description, category } = params;
-  console.log('Extracted params:', { title, date, time, description, category });
   
-  // Parse date and time
+  // Parse date and time first
   const eventDate = parseNaturalDate(date);
   const eventTime = parseNaturalTime(time);
-  console.log('Parsed date:', eventDate, 'Parsed time:', eventTime);
+  
+  // Validate parameters
+  try {
+    validateEventParams({
+      title,
+      date: eventDate,
+      time: eventTime,
+      description,
+      category,
+    });
+  } catch (validationError) {
+    console.error('Event validation failed:', validationError.message);
+    return {
+      success: false,
+      error: validationError.message,
+      message: `Validation failed: ${validationError.message}`,
+    };
+  }
   
   // Combine date and time into a Date object
   const eventDateTime = new Date(`${eventDate}T${eventTime}:00`);
-  console.log('Event datetime:', eventDateTime);
+  
+  // Validate the datetime is valid
+  if (isNaN(eventDateTime.getTime())) {
+    return {
+      success: false,
+      error: 'Invalid date/time combination',
+      message: `Invalid date/time: ${eventDate} ${eventTime}`,
+    };
+  }
   
   // Create event in Firestore
   const eventData = {
     userId: user.uid,
-    title: title,
+    title: title.trim(),
     date: eventDate,
     time: eventTime,
     datetime: eventDateTime,
-    description: description || '',
-    category: category || 'other',
+    description: description ? description.trim() : '',
+    category: category ? category.toLowerCase() : 'other',
     createdAt: new Date(),
     createdBy: 'ai_assistant',
   };
-  
-  console.log('About to save event to Firestore:', JSON.stringify(eventData, null, 2));
 
   try {
     const docRef = await addDoc(collection(db, 'events'), eventData);
-    console.log('Event created successfully with ID:', docRef.id);
+    console.log('✅ Event created successfully with ID:', docRef.id);
     
     return {
       success: true,
@@ -102,51 +126,92 @@ const createEvent = async (params) => {
     };
   } catch (error) {
     console.error('Firestore error creating event:', error);
-    throw error;
+    const errorMessage = getUserFriendlyError(error, 'Failed to create event');
+    return {
+      success: false,
+      error: errorMessage,
+      message: errorMessage,
+    };
   }
 };
 
 /**
- * Set a reminder
+ * Set a reminder with validation
  */
 const setReminder = async (params) => {
+  // Check authentication
   const user = getCurrentUser();
   if (!user) {
-    throw new Error('User not authenticated');
+    throw new Error('User not authenticated. Please log in to set reminders.');
   }
 
   const { title, date, time, notes } = params;
   
-  // Parse date and time
+  // Parse date and time first
   const reminderDate = parseNaturalDate(date);
   const reminderTime = parseNaturalTime(time);
+  
+  // Validate parameters
+  try {
+    validateReminderParams({
+      title,
+      date: reminderDate,
+      time: reminderTime,
+      notes,
+    });
+  } catch (validationError) {
+    console.error('Reminder validation failed:', validationError.message);
+    return {
+      success: false,
+      error: validationError.message,
+      message: `Validation failed: ${validationError.message}`,
+    };
+  }
   
   // Combine date and time into a Date object
   const reminderDateTime = new Date(`${reminderDate}T${reminderTime}:00`);
   
+  // Validate the datetime is valid
+  if (isNaN(reminderDateTime.getTime())) {
+    return {
+      success: false,
+      error: 'Invalid date/time combination',
+      message: `Invalid date/time: ${reminderDate} ${reminderTime}`,
+    };
+  }
+  
   // Create reminder in Firestore
   const reminderData = {
     userId: user.uid,
-    title: title,
+    title: title.trim(),
     date: reminderDate,
     time: reminderTime,
     datetime: reminderDateTime,
-    notes: notes || '',
+    notes: notes ? notes.trim() : '',
     completed: false,
     createdAt: new Date(),
     createdBy: 'ai_assistant',
   };
 
-  const docRef = await addDoc(collection(db, 'reminders'), reminderData);
-  
-  console.log('Reminder created:', docRef.id);
-  
-  return {
-    success: true,
-    reminderId: docRef.id,
-    message: `Reminder "${title}" set for ${reminderDate} at ${reminderTime}`,
-    data: reminderData,
-  };
+  try {
+    const docRef = await addDoc(collection(db, 'reminders'), reminderData);
+    console.log('✅ Reminder created successfully with ID:', docRef.id);
+    
+    return {
+      success: true,
+      reminderId: docRef.id,
+      message: `Reminder "${title}" set for ${reminderDate} at ${reminderTime}`,
+      data: reminderData,
+    };
+  } catch (error) {
+    console.error('Firestore error creating reminder:', error);
+    const errorMessage = getUserFriendlyError(error, 'Failed to create reminder');
+    return {
+      success: false,
+      error: errorMessage,
+      message: errorMessage,
+    };
+  }
 };
 
 /**

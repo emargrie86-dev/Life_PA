@@ -5,11 +5,13 @@ import { getCurrentUser, signOutUser } from '../services/auth';
 import Layout from '../components/Layout';
 import CardContainer from '../components/CardContainer';
 import WeatherTile from '../components/WeatherTile';
+import EventCard from '../components/EventCard';
+import ExpenseCard from '../components/ExpenseCard';
 import { colors } from '../theme/colors';
 import { fonts } from '../theme/fonts';
-import { getCategoryById } from '../theme/categories';
 import { getTasks } from '../services/taskService';
 import { getUserDocuments } from '../services/documentService';
+import Logger from '../utils/logger';
 
 export default function HomeScreen({ navigation }) {
   const user = getCurrentUser();
@@ -50,7 +52,7 @@ export default function HomeScreen({ navigation }) {
         }));
       setUpcomingEvents(upcoming);
     } catch (error) {
-      console.error('Error loading upcoming events:', error);
+      Logger.error('Error loading upcoming events:', error);
       setUpcomingEvents([]);
     }
   };
@@ -98,7 +100,7 @@ export default function HomeScreen({ navigation }) {
       
       setUpcomingExpenses(upcoming);
     } catch (error) {
-      console.error('Error loading upcoming expenses:', error);
+      Logger.error('Error loading upcoming expenses:', error);
       setUpcomingExpenses([]);
     }
   };
@@ -165,7 +167,7 @@ export default function HomeScreen({ navigation }) {
       try {
         await signOutUser();
       } catch (error) {
-        console.error('Logout error:', error);
+        Logger.error('Logout error:', error);
         if (Platform.OS === 'web') {
           alert('Failed to logout. Please try again.');
         } else {
@@ -315,52 +317,15 @@ export default function HomeScreen({ navigation }) {
 
           {/* Event Tiles */}
           {upcomingEvents.length > 0 ? (
-            upcomingEvents.map((event, index) => {
-              const category = getCategoryById(event.categoryId);
-              const isLastItem = index === upcomingEvents.length - 1;
-              return (
-                <MotiView
-                  key={event.id}
-                  from={{ opacity: 0, translateX: -20 }}
-                  animate={{ opacity: 1, translateX: 0 }}
-                  transition={{ 
-                    type: 'timing', 
-                    duration: 400, 
-                    delay: 500 + (index * 100) 
-                  }}
-                >
-                  <TouchableOpacity 
-                    activeOpacity={0.7}
-                    onPress={() => handleEventPress(event)}
-                  >
-                    <View style={[styles.eventCard, !isLastItem && styles.eventCardWithBorder]}>
-                      <View style={styles.eventContent}>
-                        <View style={[styles.eventIconContainer, { backgroundColor: category.color + '20' }]}>
-                          <Text style={styles.eventIcon}>{category.icon}</Text>
-                        </View>
-                        
-                        <View style={styles.eventDetails}>
-                          <Text style={styles.eventTitle}>{event.title}</Text>
-                          <View style={styles.eventMeta}>
-                            <Text style={styles.eventDate}>{event.date}</Text>
-                            <Text style={styles.eventTime}>• {event.time}</Text>
-                          </View>
-                          <View style={[styles.eventCategory, { backgroundColor: category.color + '15' }]}>
-                            <Text style={[styles.eventCategoryText, { color: category.color }]}>
-                              {category.name}
-                            </Text>
-                          </View>
-                        </View>
-
-                        <View style={styles.eventArrow}>
-                          <Text style={styles.arrowText}>›</Text>
-                        </View>
-                      </View>
-                    </View>
-                  </TouchableOpacity>
-                </MotiView>
-              );
-            })
+            upcomingEvents.map((event, index) => (
+              <EventCard
+                key={event.id}
+                event={event}
+                onPress={handleEventPress}
+                isLastItem={index === upcomingEvents.length - 1}
+                animationDelay={500 + (index * 100)}
+              />
+            ))
           ) : (
             /* Empty State Message */
             <View style={styles.emptyState}>
@@ -383,57 +348,18 @@ export default function HomeScreen({ navigation }) {
 
           {/* Expense Tiles */}
           {upcomingExpenses.length > 0 ? (
-            upcomingExpenses.map((expense, index) => {
-              const isLastItem = index === upcomingExpenses.length - 1;
-              const categoryColor = getCategoryColor(expense.category);
-              return (
-                <MotiView
-                  key={expense.id}
-                  from={{ opacity: 0, translateX: -20 }}
-                  animate={{ opacity: 1, translateX: 0 }}
-                  transition={{ 
-                    type: 'timing', 
-                    duration: 400, 
-                    delay: 500 + (index * 100) 
-                  }}
-                >
-                  <TouchableOpacity 
-                    activeOpacity={0.7}
-                    onPress={() => navigation.navigate('DocumentDetail', { documentId: expense.id })}
-                  >
-                    <View style={[styles.eventCard, !isLastItem && styles.eventCardWithBorder]}>
-                      <View style={styles.eventContent}>
-                        <View style={[styles.eventIconContainer, { backgroundColor: categoryColor + '20' }]}>
-                          <Text style={styles.eventIcon}>💰</Text>
-                        </View>
-                        
-                        <View style={styles.eventDetails}>
-                          <Text style={styles.eventTitle}>{expense.merchantName}</Text>
-                          <View style={styles.eventMeta}>
-                            <Text style={styles.eventDate}>{formatEventDate(expense.dueDate)}</Text>
-                            {expense.isRecurring && (
-                              <Text style={styles.eventTime}>• 🔄 Recurring</Text>
-                            )}
-                          </View>
-                          <View style={[styles.eventCategory, { backgroundColor: categoryColor + '15' }]}>
-                            <Text style={[styles.eventCategoryText, { color: categoryColor }]}>
-                              {expense.category || 'Other'}
-                            </Text>
-                          </View>
-                        </View>
-
-                        {/* Amount */}
-                        <View style={styles.expenseAmountContainer}>
-                          <Text style={styles.expenseAmount}>
-                            {getCurrencySymbol(expense.currency)}{expense.amount.toFixed(2)}
-                          </Text>
-                        </View>
-                      </View>
-                    </View>
-                  </TouchableOpacity>
-                </MotiView>
-              );
-            })
+            upcomingExpenses.map((expense, index) => (
+              <ExpenseCard
+                key={expense.id}
+                expense={expense}
+                onPress={(exp) => navigation.navigate('DocumentDetail', { documentId: exp.id })}
+                isLastItem={index === upcomingExpenses.length - 1}
+                animationDelay={500 + (index * 100)}
+                formatDate={formatEventDate}
+                getCurrencySymbol={getCurrencySymbol}
+                getCategoryColor={getCategoryColor}
+              />
+            ))
           ) : (
             /* Empty State Message */
             <View style={styles.emptyState}>
@@ -631,85 +557,6 @@ const styles = StyleSheet.create({
     fontSize: fonts.sizes.body,
     color: colors.primary,
     fontWeight: '600',
-  },
-  eventCard: {
-    paddingVertical: 12,
-  },
-  eventCardWithBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
-    marginBottom: 12,
-    paddingBottom: 16,
-  },
-  eventContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  eventIconContainer: {
-    width: 56,
-    height: 56,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  eventIcon: {
-    fontSize: 28,
-  },
-  eventDetails: {
-    flex: 1,
-  },
-  eventTitle: {
-    fontSize: fonts.sizes.body,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 6,
-  },
-  eventMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  eventDate: {
-    fontSize: fonts.sizes.small,
-    color: colors.text,
-    opacity: 0.7,
-    fontWeight: '500',
-  },
-  eventTime: {
-    fontSize: fonts.sizes.small,
-    color: colors.text,
-    opacity: 0.7,
-    marginLeft: 4,
-  },
-  eventCategory: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  eventCategoryText: {
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  eventArrow: {
-    marginLeft: 8,
-  },
-  arrowText: {
-    fontSize: 28,
-    color: colors.text,
-    opacity: 0.3,
-  },
-  expenseAmountContainer: {
-    marginLeft: 'auto',
-    paddingLeft: 12,
-    alignItems: 'flex-end',
-    justifyContent: 'center',
-  },
-  expenseAmount: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.primary,
   },
   emptyState: {
     alignItems: 'center',

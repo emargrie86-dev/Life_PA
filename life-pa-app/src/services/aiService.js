@@ -1,22 +1,11 @@
 // Unified AI Service
-// Manages multiple AI providers (OpenAI, Hugging Face, etc.)
+// Now exclusively uses Google Gemini 2.5 Flash
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
-// Import provider services
-import * as OpenAIService from './openai';
-import * as HuggingFaceService from './huggingface';
-import * as CohereService from './cohere';
-
-const AI_PROVIDER_KEY = 'AI_PROVIDER';
-
-// Available providers
-export const AI_PROVIDERS = {
-  OPENAI: 'openai',
-  HUGGINGFACE: 'huggingface',
-  COHERE: 'cohere',
-};
+// Import Gemini service
+import * as GeminiService from './gemini';
 
 // Helper function to get storage based on platform
 const getStorage = () => {
@@ -45,89 +34,31 @@ const getStorage = () => {
 };
 
 /**
- * Get current AI provider
- * @returns {Promise<string>}
- */
-export const getCurrentProvider = async () => {
-  try {
-    const storage = getStorage();
-    const provider = await storage.getItem(AI_PROVIDER_KEY);
-    // Default to Cohere (free and reliable option)
-    return provider || AI_PROVIDERS.COHERE;
-  } catch (error) {
-    console.error('Error getting current provider:', error);
-    return AI_PROVIDERS.COHERE;
-  }
-};
-
-/**
- * Set current AI provider
- * @param {string} provider - Provider name
- * @returns {Promise<void>}
- */
-export const setCurrentProvider = async (provider) => {
-  try {
-    console.log('Setting AI provider to:', provider);
-    const storage = getStorage();
-    await storage.setItem(AI_PROVIDER_KEY, provider);
-    console.log('AI provider set successfully');
-  } catch (error) {
-    console.error('Error setting provider:', error);
-    throw new Error('Failed to set AI provider');
-  }
-};
-
-/**
- * Initialize all AI clients on app start
- * @returns {Promise<Object>}
+ * Initialize AI client on app start
+ * @returns {Promise<boolean>}
  */
 export const initializeAIClients = async () => {
   try {
-    console.log('Initializing AI clients...');
+    console.log('Initializing Gemini AI client...');
     
-    const [openaiInitialized, hfInitialized, cohereInitialized] = await Promise.all([
-      OpenAIService.initializeClientOnStart(),
-      HuggingFaceService.initializeHFClientOnStart(),
-      CohereService.initializeCohereClientOnStart(),
-    ]);
+    const geminiInitialized = await GeminiService.initializeClientOnStart();
 
-    console.log('OpenAI initialized:', openaiInitialized);
-    console.log('Hugging Face initialized:', hfInitialized);
-    console.log('Cohere initialized:', cohereInitialized);
+    console.log('Gemini initialized:', geminiInitialized);
 
-    return {
-      openai: openaiInitialized,
-      huggingface: hfInitialized,
-      cohere: cohereInitialized,
-    };
+    return geminiInitialized;
   } catch (error) {
-    console.error('Error initializing AI clients:', error);
-    return {
-      openai: false,
-      huggingface: false,
-      cohere: false,
-    };
+    console.error('Error initializing AI client:', error);
+    return false;
   }
 };
 
 /**
- * Check if current provider is initialized
+ * Check if AI provider is initialized
  * @returns {Promise<boolean>}
  */
 export const isProviderInitialized = async () => {
   try {
-    const provider = await getCurrentProvider();
-    
-    if (provider === AI_PROVIDERS.OPENAI) {
-      return OpenAIService.getOpenAIClient() !== null;
-    } else if (provider === AI_PROVIDERS.HUGGINGFACE) {
-      return HuggingFaceService.getHFClient() !== null;
-    } else if (provider === AI_PROVIDERS.COHERE) {
-      const apiKey = await CohereService.getStoredCohereKey();
-      return apiKey !== null;
-    }
-    
-    return false;
+    return GeminiService.getGeminiClient() !== null;
   } catch (error) {
     console.error('Error checking provider initialization:', error);
     return false;
@@ -135,39 +66,21 @@ export const isProviderInitialized = async () => {
 };
 
 /**
- * Send chat message using current provider
+ * Send chat message using Gemini
  * @param {Array} messages - Array of message objects
  * @param {Object} options - Additional options
  * @returns {Promise<string|Object>} - Response text or object with text and tool_calls
  */
 export const sendChatMessage = async (messages, options = {}) => {
   try {
-    const provider = await getCurrentProvider();
-    console.log('Sending message using provider:', provider);
+    console.log('Sending message using Gemini...');
 
-    if (provider === AI_PROVIDERS.OPENAI) {
-      const client = OpenAIService.getOpenAIClient();
-      if (!client) {
-        throw new Error('OpenAI not initialized. Please set your OpenAI API key in Settings.');
-      }
-      return await OpenAIService.sendChatMessage(messages, options);
-    } else if (provider === AI_PROVIDERS.HUGGINGFACE) {
-      const client = HuggingFaceService.getHFClient();
-      if (!client) {
-        throw new Error('Hugging Face not initialized. Please set your Hugging Face API key in Settings.');
-      }
-      // HuggingFace returns a string
-      return await HuggingFaceService.sendHFChatMessage(messages, options);
-    } else if (provider === AI_PROVIDERS.COHERE) {
-      const apiKey = await CohereService.getStoredCohereKey();
-      if (!apiKey) {
-        throw new Error('Cohere not initialized. Please set your Cohere API key in Settings.');
-      }
-      // Cohere can return object with text and tool_calls
-      return await CohereService.sendCohereChatMessage(messages, options);
-    } else {
-      throw new Error('Unknown AI provider. Please select a provider in Settings.');
+    const client = GeminiService.getGeminiClient();
+    if (!client) {
+      throw new Error('Gemini not initialized. Please set your Gemini API key in Settings.');
     }
+    
+    return await GeminiService.sendChatMessage(messages, options);
   } catch (error) {
     console.error('Error sending chat message:', error);
     throw error;
@@ -175,22 +88,12 @@ export const sendChatMessage = async (messages, options = {}) => {
 };
 
 /**
- * Get API key for current provider
+ * Get API key for Gemini
  * @returns {Promise<string|null>}
  */
 export const getCurrentProviderAPIKey = async () => {
   try {
-    const provider = await getCurrentProvider();
-    
-    if (provider === AI_PROVIDERS.OPENAI) {
-      return await OpenAIService.getStoredAPIKey();
-    } else if (provider === AI_PROVIDERS.HUGGINGFACE) {
-      return await HuggingFaceService.getStoredHFKey();
-    } else if (provider === AI_PROVIDERS.COHERE) {
-      return await CohereService.getStoredCohereKey();
-    }
-    
-    return null;
+    return await GeminiService.getStoredAPIKey();
   } catch (error) {
     console.error('Error getting provider API key:', error);
     return null;
@@ -198,22 +101,13 @@ export const getCurrentProviderAPIKey = async () => {
 };
 
 /**
- * Store API key for specific provider
- * @param {string} provider - Provider name
+ * Store API key for Gemini
  * @param {string} apiKey - API key
  * @returns {Promise<void>}
  */
-export const storeProviderAPIKey = async (provider, apiKey) => {
+export const storeProviderAPIKey = async (apiKey) => {
   try {
-    if (provider === AI_PROVIDERS.OPENAI) {
-      await OpenAIService.storeAPIKey(apiKey);
-    } else if (provider === AI_PROVIDERS.HUGGINGFACE) {
-      await HuggingFaceService.storeHFKey(apiKey);
-    } else if (provider === AI_PROVIDERS.COHERE) {
-      await CohereService.storeCohereKey(apiKey);
-    } else {
-      throw new Error('Unknown provider');
-    }
+    await GeminiService.storeAPIKey(apiKey);
   } catch (error) {
     console.error('Error storing provider API key:', error);
     throw error;
@@ -221,21 +115,13 @@ export const storeProviderAPIKey = async (provider, apiKey) => {
 };
 
 /**
- * Validate API key for specific provider
- * @param {string} provider - Provider name
+ * Validate API key for Gemini
  * @param {string} apiKey - API key to validate
  * @returns {Promise<boolean>}
  */
-export const validateProviderAPIKey = async (provider, apiKey) => {
+export const validateProviderAPIKey = async (apiKey) => {
   try {
-    if (provider === AI_PROVIDERS.OPENAI) {
-      return await OpenAIService.validateAPIKey(apiKey);
-    } else if (provider === AI_PROVIDERS.HUGGINGFACE) {
-      return await HuggingFaceService.validateHFKey(apiKey);
-    } else if (provider === AI_PROVIDERS.COHERE) {
-      return await CohereService.validateCohereKey(apiKey);
-    }
-    return false;
+    return await GeminiService.validateAPIKey(apiKey);
   } catch (error) {
     console.error('Error validating provider API key:', error);
     return false;
@@ -243,19 +129,12 @@ export const validateProviderAPIKey = async (provider, apiKey) => {
 };
 
 /**
- * Remove API key for specific provider
- * @param {string} provider - Provider name
+ * Remove API key for Gemini
  * @returns {Promise<void>}
  */
-export const removeProviderAPIKey = async (provider) => {
+export const removeProviderAPIKey = async () => {
   try {
-    if (provider === AI_PROVIDERS.OPENAI) {
-      await OpenAIService.removeAPIKey();
-    } else if (provider === AI_PROVIDERS.HUGGINGFACE) {
-      await HuggingFaceService.removeHFKey();
-    } else if (provider === AI_PROVIDERS.COHERE) {
-      await CohereService.removeCohereKey();
-    }
+    await GeminiService.removeAPIKey();
   } catch (error) {
     console.error('Error removing provider API key:', error);
     throw error;
@@ -264,37 +143,30 @@ export const removeProviderAPIKey = async (provider) => {
 
 /**
  * Get provider display name
- * @param {string} provider - Provider name
  * @returns {string}
  */
-export const getProviderDisplayName = (provider) => {
-  switch (provider) {
-    case AI_PROVIDERS.OPENAI:
-      return 'OpenAI (GPT)';
-    case AI_PROVIDERS.HUGGINGFACE:
-      return 'Hugging Face (Free)';
-    case AI_PROVIDERS.COHERE:
-      return 'Cohere (Free)';
-    default:
-      return 'Unknown Provider';
-  }
+export const getProviderDisplayName = () => {
+  return 'Google Gemini 2.5 Flash';
 };
 
 /**
  * Get provider API key URL
- * @param {string} provider - Provider name
  * @returns {string}
  */
-export const getProviderKeyURL = (provider) => {
-  switch (provider) {
-    case AI_PROVIDERS.OPENAI:
-      return 'https://platform.openai.com/api-keys';
-    case AI_PROVIDERS.HUGGINGFACE:
-      return 'https://huggingface.co/settings/tokens';
-    case AI_PROVIDERS.COHERE:
-      return 'https://dashboard.cohere.com/api-keys';
-    default:
-      return '';
-  }
+export const getProviderKeyURL = () => {
+  return 'https://aistudio.google.com/app/apikey';
 };
 
+// Export for backwards compatibility (if anything imports these)
+export const AI_PROVIDERS = {
+  GEMINI: 'gemini',
+};
+
+export const getCurrentProvider = async () => {
+  return AI_PROVIDERS.GEMINI;
+};
+
+export const setCurrentProvider = async (provider) => {
+  // No-op since we only use Gemini now
+  console.log('Using Gemini as the only AI provider');
+};

@@ -1,5 +1,6 @@
 // Authentication Service
 // Helper functions for authentication operations
+// Now with improved validation and error handling
 
 import { 
   createUserWithEmailAndPassword,
@@ -9,6 +10,8 @@ import {
   updateProfile
 } from 'firebase/auth';
 import { auth } from './firebase';
+import { isValidEmail, validatePassword } from '../utils/validation';
+import { handleFirebaseAuthError } from '../utils/errorHandler';
 
 /**
  * Sign up a new user with email and password
@@ -18,17 +21,28 @@ import { auth } from './firebase';
  * @returns {Promise<UserCredential>}
  */
 export const signUpWithEmail = async (email, password, displayName = '') => {
+  // Validate inputs before making Firebase call
+  if (!isValidEmail(email)) {
+    throw new Error('Please enter a valid email address');
+  }
+  
+  const passwordValidation = validatePassword(password);
+  if (!passwordValidation.valid) {
+    throw new Error(passwordValidation.message);
+  }
+  
   try {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     
     // Update display name if provided
-    if (displayName) {
-      await updateProfile(userCredential.user, { displayName });
+    if (displayName && displayName.trim()) {
+      await updateProfile(userCredential.user, { displayName: displayName.trim() });
     }
     
     return userCredential;
   } catch (error) {
-    throw handleAuthError(error);
+    const friendlyError = handleFirebaseAuthError(error);
+    throw new Error(friendlyError);
   }
 };
 
@@ -39,11 +53,21 @@ export const signUpWithEmail = async (email, password, displayName = '') => {
  * @returns {Promise<UserCredential>}
  */
 export const signInWithEmail = async (email, password) => {
+  // Validate inputs before making Firebase call
+  if (!email || !email.trim()) {
+    throw new Error('Email is required');
+  }
+  
+  if (!password || !password.trim()) {
+    throw new Error('Password is required');
+  }
+  
   try {
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     return userCredential;
   } catch (error) {
-    throw handleAuthError(error);
+    const friendlyError = handleFirebaseAuthError(error);
+    throw new Error(friendlyError);
   }
 };
 
@@ -55,7 +79,8 @@ export const signOutUser = async () => {
   try {
     await signOut(auth);
   } catch (error) {
-    throw handleAuthError(error);
+    const friendlyError = handleFirebaseAuthError(error);
+    throw new Error(friendlyError);
   }
 };
 
@@ -76,49 +101,10 @@ export const getCurrentUser = () => {
   return auth.currentUser;
 };
 
-/**
- * Convert Firebase auth errors to user-friendly messages
- * @param {Error} error 
- * @returns {Error}
- */
+// Legacy error handler - now using centralized error handler
+// Kept for backward compatibility
 const handleAuthError = (error) => {
-  let message = 'An error occurred';
-  
-  switch (error.code) {
-    case 'auth/email-already-in-use':
-      message = 'This email is already registered';
-      break;
-    case 'auth/invalid-email':
-      message = 'Invalid email address';
-      break;
-    case 'auth/operation-not-allowed':
-      message = 'Operation not allowed';
-      break;
-    case 'auth/weak-password':
-      message = 'Password is too weak (minimum 6 characters)';
-      break;
-    case 'auth/user-disabled':
-      message = 'This account has been disabled';
-      break;
-    case 'auth/user-not-found':
-      message = 'No account found with this email';
-      break;
-    case 'auth/wrong-password':
-      message = 'Incorrect password';
-      break;
-    case 'auth/invalid-credential':
-      message = 'Invalid email or password';
-      break;
-    case 'auth/too-many-requests':
-      message = 'Too many failed attempts. Please try again later';
-      break;
-    case 'auth/network-request-failed':
-      message = 'Network error. Please check your connection';
-      break;
-    default:
-      message = error.message || 'Authentication failed';
-  }
-  
-  return new Error(message);
+  const friendlyMessage = handleFirebaseAuthError(error);
+  return new Error(friendlyMessage);
 };
 

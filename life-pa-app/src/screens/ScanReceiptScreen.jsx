@@ -14,7 +14,6 @@ import * as DocumentPicker from 'expo-document-picker';
 import Layout from '../components/Layout';
 import AppHeader from '../components/AppHeader';
 import ButtonPrimary from '../components/ButtonPrimary';
-import CameraView from '../components/CameraView';
 import Toast from '../components/Toast';
 import { colors } from '../theme/colors';
 import { fonts } from '../theme/fonts';
@@ -23,16 +22,16 @@ import { parseReceiptText } from '../utils/textParsing';
 import { parseReceiptWithAI, parseDocumentWithAI, isAIParsingAvailable } from '../services/aiDocumentParser';
 import { createDocument, uploadDocumentImage } from '../services/documentService';
 import { auth } from '../services/firebase';
-import { DocumentLogger } from '../utils/logger';
 
 // Conditionally import Camera only on native platforms
-let CameraType;
+let Camera, CameraType;
 if (Platform.OS !== 'web') {
   try {
     const cameraModule = require('expo-camera');
+    Camera = cameraModule.Camera;
     CameraType = cameraModule.CameraType;
   } catch (error) {
-    DocumentLogger.warn('expo-camera not available:', error);
+    console.warn('expo-camera not available:', error);
   }
 }
 
@@ -58,9 +57,8 @@ export default function UploadDocumentScreen({ navigation }) {
     }
 
     try {
-      const { Camera } = require('expo-camera');
       if (!Camera) {
-        DocumentLogger.warn('Camera module not available');
+        console.warn('Camera module not available');
         setHasPermission(false);
         return;
       }
@@ -72,7 +70,7 @@ export default function UploadDocumentScreen({ navigation }) {
         cameraStatus.status === 'granted' && galleryStatus.status === 'granted'
       );
     } catch (error) {
-      DocumentLogger.error('Permission request failed:', error);
+      console.error('Permission request failed:', error);
       setHasPermission(false);
     }
   };
@@ -94,14 +92,14 @@ export default function UploadDocumentScreen({ navigation }) {
       setCapturedFileType('image');
       setShowCamera(false);
     } catch (error) {
-      DocumentLogger.error('Failed to capture photo:', error);
+      console.error('Failed to capture photo:', error);
       showToast('Failed to capture photo. Please try again.', 'error');
     }
   };
 
   const handleSelectFromGallery = async () => {
     try {
-      DocumentLogger.debug('Opening image picker...');
+      console.log('Opening image picker...');
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
@@ -109,35 +107,35 @@ export default function UploadDocumentScreen({ navigation }) {
         quality: 0.8,
       });
 
-      DocumentLogger.debug('Image picker result');
+      console.log('Image picker result:', JSON.stringify(result, null, 2));
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        DocumentLogger.info('Image selected:', result.assets[0].uri);
+        console.log('Image selected:', result.assets[0].uri);
         setCapturedImage(result.assets[0].uri);
         setCapturedFileType('image');
         showToast('Image loaded successfully', 'success');
       } else {
-        DocumentLogger.debug('Image selection canceled or no assets');
+        console.log('Image selection canceled or no assets');
       }
     } catch (error) {
-      DocumentLogger.error('Failed to pick image:', error);
+      console.error('Failed to pick image:', error);
       showToast('Failed to select image from gallery: ' + error.message, 'error');
     }
   };
 
   const handleUploadDocument = async () => {
     try {
-      DocumentLogger.debug('Opening document picker...');
+      console.log('Opening document picker...');
       const result = await DocumentPicker.getDocumentAsync({
         type: ['image/*', 'application/pdf'],
         copyToCacheDirectory: true,
       });
 
-      DocumentLogger.debug('Document picker result');
+      console.log('Document picker result:', JSON.stringify(result, null, 2));
 
       // Handle different result formats (expo-document-picker API changes)
       if (result.canceled || result.type === 'cancel') {
-        DocumentLogger.debug('Document selection canceled');
+        console.log('Document selection canceled');
         return;
       }
 
@@ -149,12 +147,17 @@ export default function UploadDocumentScreen({ navigation }) {
         // Old API format
         document = result;
       } else {
-        DocumentLogger.error('No document in result:', result);
+        console.error('No document in result:', result);
         showToast('No document selected.', 'error');
         return;
       }
 
-      DocumentLogger.info('Document selected:', document.name);
+      console.log('Document selected:', {
+        uri: document.uri,
+        name: document.name,
+        mimeType: document.mimeType,
+        size: document.size
+      });
 
       // Determine file type
       const mimeType = document.mimeType || document.type || '';
@@ -167,17 +170,17 @@ export default function UploadDocumentScreen({ navigation }) {
       
       const isPDF = mimeType === 'application/pdf' || fileExtension === 'pdf';
 
-      DocumentLogger.debug('File type detection:', { isImage, isPDF, mimeType, fileExtension });
+      console.log('File type detection:', { isImage, isPDF, mimeType, fileExtension });
       
       if (isImage) {
         // Image file - process directly
-        DocumentLogger.debug('Processing as image');
+        console.log('Processing as image');
         setCapturedImage(document.uri);
         setCapturedFileType('image');
         showToast('Image loaded successfully', 'success');
       } else if (isPDF) {
         // PDF file
-        DocumentLogger.debug('Processing as PDF');
+        console.log('Processing as PDF');
         if (Platform.OS === 'web') {
           // On web, just confirm and proceed
           const confirmed = window.confirm(
@@ -226,7 +229,9 @@ export default function UploadDocumentScreen({ navigation }) {
     }
 
     setIsProcessing(true);
-    DocumentLogger.info('Starting document processing', { fileType: capturedFileType });
+    console.log('=== STARTING DOCUMENT PROCESSING ===');
+    console.log('Image URI:', capturedImage);
+    console.log('File type:', capturedFileType);
 
     try {
       let extractedText = '';
@@ -234,11 +239,11 @@ export default function UploadDocumentScreen({ navigation }) {
       // Try OCR extraction
       try {
         showToast('Extracting text from image...', 'info');
-        DocumentLogger.debug('Attempting OCR extraction...');
+        console.log('Attempting OCR extraction...');
         extractedText = await extractTextFromImage(capturedImage);
-        DocumentLogger.info('OCR successful, text length:', extractedText?.length);
+        console.log('OCR successful, extracted text length:', extractedText?.length);
       } catch (ocrError) {
-        DocumentLogger.error('OCR failed:', ocrError);
+        console.error('OCR failed:', ocrError);
         
         // Ask user if they want to continue without OCR
         const continueWithoutOCR = Platform.OS === 'web'
@@ -264,18 +269,18 @@ export default function UploadDocumentScreen({ navigation }) {
 
       // Parse document data with AI (if available) or basic parsing
       showToast('Analyzing document...', 'info');
-      DocumentLogger.debug('Parsing document text...');
+      console.log('Parsing document text...');
       
       let parsedData;
       const aiAvailable = await isAIParsingAvailable();
       
       if (aiAvailable && extractedText && extractedText.trim().length > 50) {
-        DocumentLogger.debug('Using AI-powered document parsing with classification...');
+        console.log('Using AI-powered document parsing with classification...');
         showToast('Using AI to classify and extract document details...', 'info');
         try {
           // Use enhanced document parser with classification
           parsedData = await parseDocumentWithAI(extractedText);
-          DocumentLogger.info('AI parsing successful');
+          console.log('AI parsed data:', parsedData);
           
           // Show document type to user
           if (parsedData.documentType) {
@@ -284,14 +289,14 @@ export default function UploadDocumentScreen({ navigation }) {
             showToast('AI extraction complete!', 'success');
           }
         } catch (aiError) {
-          DocumentLogger.warn('AI parsing failed, using basic parsing:', aiError.message);
+          console.error('AI parsing failed, using basic parsing:', aiError);
           showToast('Using basic parsing...', 'info');
           parsedData = parseReceiptText(extractedText);
         }
       } else {
-        DocumentLogger.debug('Using basic text parsing...');
+        console.log('Using basic text parsing...');
         parsedData = parseReceiptText(extractedText || 'No text extracted');
-        DocumentLogger.debug('Basic parsing complete');
+        console.log('Parsed data:', parsedData);
       }
 
       // Navigate to preview screen for review and save
@@ -308,7 +313,10 @@ export default function UploadDocumentScreen({ navigation }) {
       }, 500);
 
     } catch (error) {
-      DocumentLogger.error('Document processing error:', error);
+      console.error('=== DOCUMENT PROCESSING ERROR ===');
+      console.error('Error:', error);
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
       setIsProcessing(false);
       
       const errorMessage = error.message || 'Failed to process document. Please try again with a clearer image.';
@@ -367,21 +375,41 @@ export default function UploadDocumentScreen({ navigation }) {
   }
 
   // Show camera view (only on native platforms)
-  if (showCamera && Platform.OS !== 'web') {
+  if (showCamera && Platform.OS !== 'web' && Camera) {
     return (
-      <CameraView
-        cameraType={cameraType}
-        onCameraReady={setCameraRef}
-        onCapture={capturePhoto}
-        onClose={() => setShowCamera(false)}
-        onFlipCamera={() => {
-          setCameraType(
-            cameraType === CameraType.back
-              ? CameraType.front
-              : CameraType.back
-          );
-        }}
-      />
+      <Layout style={styles.layout}>
+        <AppHeader 
+          title="Take Photo" 
+          onBackPress={() => setShowCamera(false)} 
+        />
+        <Camera
+          style={styles.camera}
+          type={cameraType}
+          ref={setCameraRef}
+        >
+          <View style={styles.cameraOverlay}>
+            <View style={styles.scanFrame}>
+              <View style={[styles.corner, styles.topLeft]} />
+              <View style={[styles.corner, styles.topRight]} />
+              <View style={[styles.corner, styles.bottomLeft]} />
+              <View style={[styles.corner, styles.bottomRight]} />
+              
+              <Text style={styles.scanInstruction}>
+                Position document within frame
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.cameraControls}>
+            <TouchableOpacity
+              style={styles.captureButton}
+              onPress={capturePhoto}
+            >
+              <View style={styles.captureButtonInner} />
+            </TouchableOpacity>
+          </View>
+        </Camera>
+      </Layout>
     );
   }
 
@@ -442,13 +470,12 @@ export default function UploadDocumentScreen({ navigation }) {
                 <Text style={styles.secondaryText}>Gallery</Text>
               </TouchableOpacity>
 
-              {Platform.OS !== 'web' && (
+              {Platform.OS !== 'web' && Camera && (
                 <TouchableOpacity
-                  style={styles.secondaryButton}
+                  style={styles.captureButton}
                   onPress={handleTakePhoto}
                 >
-                  <Text style={styles.secondaryIcon}>📷</Text>
-                  <Text style={styles.secondaryText}>Camera</Text>
+                  <View style={styles.captureButtonInner} />
                 </TouchableOpacity>
               )}
 

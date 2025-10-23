@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useReducer } from 'react';
 import {
   View,
   Text,
@@ -26,18 +26,47 @@ import {
 import { getCurrentUser } from '../services/auth';
 import { AI_TOOLS, getCurrentDateTimeContext } from '../services/aiTools';
 import { executeToolCalls } from '../services/functionExecutor';
+import { ChatLogger } from '../utils/logger';
+
+// Chat state reducer to prevent race conditions
+const chatReducer = (state, action) => {
+  switch (action.type) {
+    case 'ADD_MESSAGE':
+      return {
+        ...state,
+        messages: [...state.messages, action.payload],
+      };
+    case 'SET_MESSAGES':
+      return {
+        ...state,
+        messages: action.payload,
+      };
+    case 'SET_SENDING':
+      return {
+        ...state,
+        sendingMessage: action.payload,
+      };
+    default:
+      return state;
+  }
+};
+
+const initialChatState = {
+  messages: [],
+  sendingMessage: false,
+};
 
 export default function ChatScreen({ navigation, route }) {
   const [conversation, setConversation] = useState(null);
-  const [messages, setMessages] = useState([]);
+  const [chatState, dispatch] = useReducer(chatReducer, initialChatState);
   const [loading, setLoading] = useState(false);
-  const [sendingMessage, setSendingMessage] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   
   const flatListRef = useRef(null);
   const conversationId = route?.params?.conversationId;
 
   const user = getCurrentUser();
+  const { messages, sendingMessage } = chatState;
 
   useEffect(() => {
     if (conversationId) {
@@ -49,11 +78,11 @@ export default function ChatScreen({ navigation, route }) {
     // Ensure AI clients are initialized when screen loads
     const initializeClients = async () => {
       try {
-        console.log('ChatScreen: Checking AI provider initialization...');
+        ChatLogger.debug('Checking AI provider initialization...');
         const clients = await initializeAIClients();
-        console.log('ChatScreen: AI clients initialized:', clients);
+        ChatLogger.debug('AI clients initialized:', clients);
       } catch (error) {
-        console.log('ChatScreen: AI client initialization failed:', error.message);
+        ChatLogger.error('AI client initialization failed:', error.message);
       }
     };
     
@@ -75,13 +104,13 @@ export default function ChatScreen({ navigation, route }) {
       const conv = await getConversation(conversationId);
       if (conv) {
         setConversation(conv);
-        setMessages(conv.messages || []);
+        dispatch({ type: 'SET_MESSAGES', payload: conv.messages || [] });
       } else {
         Alert.alert('Error', 'Conversation not found');
         navigation.goBack();
       }
     } catch (error) {
-      console.error('Error loading conversation:', error);
+      ChatLogger.error('Error loading conversation:', error);
       Alert.alert('Error', 'Failed to load conversation');
       navigation.goBack();
     } finally {
@@ -95,9 +124,9 @@ export default function ChatScreen({ navigation, route }) {
       const newConversationId = await createConversation();
       const conv = await getConversation(newConversationId);
       setConversation(conv);
-      setMessages([]);
+      dispatch({ type: 'SET_MESSAGES', payload: [] });
     } catch (error) {
-      console.error('Error creating conversation:', error);
+      ChatLogger.error('Error creating conversation:', error);
       Alert.alert('Error', 'Failed to create new conversation');
     } finally {
       setLoading(false);
@@ -109,7 +138,7 @@ export default function ChatScreen({ navigation, route }) {
 
     // Check if AI provider is initialized
     const isInitialized = await isProviderInitialized();
-    console.log('AI provider status:', isInitialized ? 'Initialized' : 'Not initialized');
+    ChatLogger.debug('AI provider status:', isInitialized ? 'Initialized' : 'Not initialized');
     
     if (!isInitialized) {
       Alert.alert(
@@ -124,7 +153,7 @@ export default function ChatScreen({ navigation, route }) {
     }
 
     try {
-      setSendingMessage(true);
+      dispatch({ type: 'SET_SENDING', payload: true });
 
       // Add user message immediately to UI
       const userMessage = {
@@ -134,8 +163,7 @@ export default function ChatScreen({ navigation, route }) {
         timestamp: new Date()
       };
 
-      let currentMessages = [...messages, userMessage];
-      setMessages(currentMessages);
+      dispatch({ type: 'ADD_MESSAGE', payload: userMessage });
 
       // Add user message to conversation in Firestore
       await addMessage(conversation.id, 'user', content);
@@ -148,21 +176,20 @@ export default function ChatScreen({ navigation, route }) {
       };
 
       // Prepare messages for AI (including conversation history and system context)
+      const currentMessages = [...messages, userMessage];
       const aiMessages = [systemMessage, ...currentMessages.map(msg => ({
         role: msg.role,
         content: msg.content
       }))];
 
       // Get AI response with tools
-      console.log('Sending message with tools enabled');
-      console.log('Tools being sent:', JSON.stringify(AI_TOOLS, null, 2));
+      ChatLogger.debug('Sending message with tools enabled');
       const aiResponse = await sendChatMessage(aiMessages, { tools: AI_TOOLS });
-      console.log('AI Response received:', JSON.stringify(aiResponse, null, 2));
+      ChatLogger.debug('AI Response received');
 
       // Check if AI wants to use tools
       if (aiResponse.tool_calls && aiResponse.tool_calls.length > 0) {
-        console.log('=== AI REQUESTED TOOL CALLS ===');
-        console.log('Tool calls:', JSON.stringify(aiResponse.tool_calls, null, 2));
+        ChatLogger.debug('AI requested tool calls:', aiResponse.tool_calls.length);
 
         // Add intermediate AI message if there's text
         if (aiResponse.text && aiResponse.text.trim()) {
@@ -172,17 +199,14 @@ export default function ChatScreen({ navigation, route }) {
             content: aiResponse.text,
             timestamp: new Date(),
           };
-          currentMessages = [...currentMessages, thinkingMessage];
-          setMessages(currentMessages);
+          dispatch({ type: 'ADD_MESSAGE', payload: thinkingMessage });
           await addMessage(conversation.id, 'assistant', aiResponse.text);
         }
 
         // Execute tool calls
-        console.log('=== EXECUTING TOOL CALLS ===');
-        console.log('Tool calls to execute:', JSON.stringify(aiResponse.tool_calls, null, 2));
+        ChatLogger.debug('Executing tool calls...');
         const toolResults = await executeToolCalls(aiResponse.tool_calls);
-        console.log('=== TOOL EXECUTION RESULTS ===');
-        console.log('Results:', JSON.stringify(toolResults, null, 2));
+        ChatLogger.debug('Tool execution complete');
 
         // Create a summary of tool execution for display
         const toolResultsSummary = toolResults.map(tr => {
@@ -202,8 +226,7 @@ export default function ChatScreen({ navigation, route }) {
           isToolResult: true,
         };
 
-        currentMessages = [...currentMessages, toolMessage];
-        setMessages(currentMessages);
+        dispatch({ type: 'ADD_MESSAGE', payload: toolMessage });
         await addMessage(conversation.id, 'assistant', toolResultsSummary);
 
         // Check for special actions
@@ -216,8 +239,7 @@ export default function ChatScreen({ navigation, route }) {
         }
       } else {
         // No tool calls, just add the text response
-        console.log('=== NO TOOL CALLS ===');
-        console.log('Response text:', aiResponse.text || aiResponse);
+        ChatLogger.debug('No tool calls, adding text response');
         const aiMessage = {
           id: (Date.now() + 1).toString(),
           role: 'assistant',
@@ -225,20 +247,15 @@ export default function ChatScreen({ navigation, route }) {
           timestamp: new Date()
         };
 
-        currentMessages = [...currentMessages, aiMessage];
-        setMessages(currentMessages);
+        dispatch({ type: 'ADD_MESSAGE', payload: aiMessage });
         await addMessage(conversation.id, 'assistant', aiResponse.text || aiResponse);
       }
 
     } catch (error) {
-      console.error('Error sending message:', error);
-      
-      // Remove the user message if AI response failed
-      setMessages(messages);
-      
+      ChatLogger.error('Error sending message:', error);
       Alert.alert('Error', error.message || 'Failed to send message. Please try again.');
     } finally {
-      setSendingMessage(false);
+      dispatch({ type: 'SET_SENDING', payload: false });
     }
   };
 

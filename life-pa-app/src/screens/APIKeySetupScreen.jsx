@@ -15,12 +15,12 @@ import Layout from '../components/Layout';
 import AppHeader from '../components/AppHeader';
 import ButtonPrimary from '../components/ButtonPrimary';
 import { 
-  getStoredAPIKey, 
-  storeAPIKey, 
-  removeAPIKey, 
-  validateAPIKey,
-  initializeClientOnStart 
-} from '../services/openai';
+  getCurrentProviderAPIKey as getStoredAPIKey, 
+  storeProviderAPIKey as storeAPIKey, 
+  removeProviderAPIKey as removeAPIKey, 
+  validateProviderAPIKey as validateAPIKey,
+  initializeAIClients as initializeClientOnStart 
+} from '../services/aiService';
 
 export default function APIKeySetupScreen({ navigation }) {
   const [apiKey, setApiKey] = useState('');
@@ -53,7 +53,7 @@ export default function APIKeySetupScreen({ navigation }) {
 
   const handleSaveKey = async () => {
     if (!apiKey.trim()) {
-      Alert.alert('Error', 'Please enter your OpenAI API key');
+      Alert.alert('Error', 'Please enter your Gemini API key');
       return;
     }
 
@@ -63,7 +63,7 @@ export default function APIKeySetupScreen({ navigation }) {
     }
 
     if (apiKey.length < 20) {
-      Alert.alert('Error', 'Please enter a valid OpenAI API key');
+      Alert.alert('Error', 'Please enter a valid Gemini API key');
       return;
     }
 
@@ -87,7 +87,7 @@ export default function APIKeySetupScreen({ navigation }) {
       
       Alert.alert(
         'Success', 
-        'OpenAI API key has been saved successfully!',
+        'Gemini API key has been saved successfully!',
         [{ text: 'OK', onPress: () => navigation.goBack() }]
       );
       
@@ -102,7 +102,7 @@ export default function APIKeySetupScreen({ navigation }) {
   const handleRemoveKey = () => {
     Alert.alert(
       'Remove API Key',
-      'Are you sure you want to remove your OpenAI API key? This will disable the chat feature until you add a new key.',
+      'Are you sure you want to remove your Gemini API key? This will disable the chat feature until you add a new key.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -138,10 +138,10 @@ export default function APIKeySetupScreen({ navigation }) {
 
   const getApiKeyHelpText = () => {
     return (
-      "To use the AI chat feature, you'll need an OpenAI API key.\n\n" +
-      "1. Go to https://platform.openai.com/api-keys\n" +
-      "2. Sign in to your OpenAI account\n" +
-      "3. Click 'Create new secret key'\n" +
+      "To use the AI chat feature, you'll need a Google Gemini API key.\n\n" +
+      "1. Go to https://aistudio.google.com/app/apikey\n" +
+      "2. Sign in with your Google account\n" +
+      "3. Click 'Create API Key'\n" +
       "4. Copy the key and paste it here\n\n" +
       "Note: Your API key is stored securely on your device and is never shared."
     );
@@ -150,13 +150,13 @@ export default function APIKeySetupScreen({ navigation }) {
   return (
     <Layout>
       <AppHeader 
-        title="OpenAI API Key" 
+        title="Gemini API Key" 
         onBackPress={() => navigation.goBack()}
       />
       <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
         <View style={styles.header}>
           <Text style={styles.subtitle}>
-            Configure your OpenAI API key to enable AI chat features
+            Configure your Google Gemini API key to enable AI chat features
           </Text>
         </View>
 
@@ -191,7 +191,7 @@ export default function APIKeySetupScreen({ navigation }) {
           
           <TextInput
             style={styles.input}
-            placeholder="sk-..."
+            placeholder="AIza..."
             value={apiKey}
             onChangeText={setApiKey}
             secureTextEntry
@@ -225,7 +225,7 @@ export default function APIKeySetupScreen({ navigation }) {
             title="Save Without Validation (Test)"
             onPress={async () => {
               if (!apiKey.trim()) {
-                Alert.alert('Error', 'Please enter your OpenAI API key');
+                Alert.alert('Error', 'Please enter your Gemini API key');
                 return;
               }
               if (apiKey !== confirmApiKey) {
@@ -282,7 +282,7 @@ export default function APIKeySetupScreen({ navigation }) {
         <View style={styles.securityNote}>
           <Text style={styles.securityText}>
             🔒 Your API key is stored securely on your device using AsyncStorage 
-            and is never transmitted to our servers except when making requests to OpenAI.
+            and is never transmitted to our servers except when making requests to Google Gemini.
           </Text>
         </View>
       </ScrollView>

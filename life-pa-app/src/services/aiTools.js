@@ -7,7 +7,7 @@
 export const AI_TOOLS = [
   {
     name: 'create_event',
-    description: 'Create a new calendar event with a title, date, time, and optional description',
+    description: 'Create a new calendar event. YOU MUST calculate dates and times yourself - convert "tomorrow" to the actual date, "4pm" to "16:00", etc. Do NOT ask the user for formats.',
     parameter_definitions: {
       title: {
         description: 'The title/name of the event',
@@ -15,12 +15,12 @@ export const AI_TOOLS = [
         required: true,
       },
       date: {
-        description: 'The date of the event in YYYY-MM-DD format',
+        description: 'The date in YYYY-MM-DD format. YOU must convert natural language (e.g., "tomorrow", "next Monday") to this format yourself.',
         type: 'string',
         required: true,
       },
       time: {
-        description: 'The time of the event in HH:MM format (24-hour)',
+        description: 'The time in HH:MM 24-hour format. YOU must convert 12-hour times (e.g., "4pm" → "16:00") yourself.',
         type: 'string',
         required: true,
       },
@@ -38,7 +38,7 @@ export const AI_TOOLS = [
   },
   {
     name: 'set_reminder',
-    description: 'Set a reminder for a specific date and time',
+    description: 'Set a reminder. YOU MUST calculate dates and times yourself - convert "tomorrow" to the actual date, "3pm" to "15:00", etc. Do NOT ask the user for formats.',
     parameter_definitions: {
       title: {
         description: 'What to be reminded about',
@@ -46,12 +46,12 @@ export const AI_TOOLS = [
         required: true,
       },
       date: {
-        description: 'The date for the reminder in YYYY-MM-DD format',
+        description: 'The date in YYYY-MM-DD format. YOU must convert natural language (e.g., "tomorrow", "next week") to this format yourself.',
         type: 'string',
         required: true,
       },
       time: {
-        description: 'The time for the reminder in HH:MM format (24-hour)',
+        description: 'The time in HH:MM 24-hour format. YOU must convert 12-hour times (e.g., "3pm" → "15:00") yourself.',
         type: 'string',
         required: true,
       },

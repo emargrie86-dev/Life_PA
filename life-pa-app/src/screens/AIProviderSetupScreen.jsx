@@ -15,9 +15,6 @@ import Layout from '../components/Layout';
 import AppHeader from '../components/AppHeader';
 import ButtonPrimary from '../components/ButtonPrimary';
 import {
-  AI_PROVIDERS,
-  getCurrentProvider,
-  setCurrentProvider,
   getCurrentProviderAPIKey,
   storeProviderAPIKey,
   validateProviderAPIKey,
@@ -28,7 +25,6 @@ import {
 } from '../services/aiService';
 
 export default function AIProviderSetupScreen({ navigation }) {
-  const [selectedProvider, setSelectedProvider] = useState(AI_PROVIDERS.COHERE);
   const [apiKey, setApiKey] = useState('');
   const [confirmApiKey, setConfirmApiKey] = useState('');
   const [loading, setLoading] = useState(false);
@@ -40,16 +36,10 @@ export default function AIProviderSetupScreen({ navigation }) {
     loadCurrentSettings();
   }, []);
 
-  useEffect(() => {
-    // Load API key when provider changes
-    loadProviderKey();
-  }, [selectedProvider]);
-
   const loadCurrentSettings = async () => {
     try {
-      const provider = await getCurrentProvider();
-      setSelectedProvider(provider);
       await initializeAIClients();
+      await loadProviderKey();
     } catch (error) {
       console.error('Error loading settings:', error);
     }
@@ -57,19 +47,7 @@ export default function AIProviderSetupScreen({ navigation }) {
 
   const loadProviderKey = async () => {
     try {
-      // Get the API key for the selected provider specifically
-      let existingKey = null;
-      
-      if (selectedProvider === AI_PROVIDERS.OPENAI) {
-        const OpenAIService = require('../services/openai');
-        existingKey = await OpenAIService.getStoredAPIKey();
-      } else if (selectedProvider === AI_PROVIDERS.HUGGINGFACE) {
-        const HuggingFaceService = require('../services/huggingface');
-        existingKey = await HuggingFaceService.getStoredHFKey();
-      } else if (selectedProvider === AI_PROVIDERS.COHERE) {
-        const CohereService = require('../services/cohere');
-        existingKey = await CohereService.getStoredCohereKey();
-      }
+      const existingKey = await getCurrentProviderAPIKey();
       
       if (existingKey) {
         setHasExistingKey(true);
@@ -83,11 +61,6 @@ export default function AIProviderSetupScreen({ navigation }) {
     } catch (error) {
       console.error('Error loading provider key:', error);
     }
-  };
-
-  const handleProviderChange = async (provider) => {
-    setSelectedProvider(provider);
-    await setCurrentProvider(provider);
   };
 
   const handleSaveKey = async () => {
@@ -108,26 +81,26 @@ export default function AIProviderSetupScreen({ navigation }) {
 
     try {
       setValidating(true);
-      console.log('Starting API key validation for:', selectedProvider);
+      console.log('Starting Gemini API key validation...');
 
       // Validate the API key
-      const isValid = await validateProviderAPIKey(selectedProvider, apiKey.trim());
+      const isValid = await validateProviderAPIKey(apiKey.trim());
       console.log('API key validation result:', isValid);
 
       if (!isValid) {
         Alert.alert(
           'Invalid Key',
-          'The provided API key is not valid. Please check and try again.'
+          'The provided Gemini API key is not valid. Please check and try again.'
         );
         return;
       }
 
       console.log('Storing API key...');
       // Store the validated key
-      await storeProviderAPIKey(selectedProvider, apiKey.trim());
+      await storeProviderAPIKey(apiKey.trim());
       console.log('API key stored successfully');
 
-      Alert.alert('Success', 'API key has been saved successfully!', [
+      Alert.alert('Success', 'Gemini API key has been saved successfully!', [
         { text: 'OK', onPress: () => navigation.goBack() },
       ]);
     } catch (error) {
@@ -151,7 +124,7 @@ export default function AIProviderSetupScreen({ navigation }) {
 
     try {
       console.log('Saving API key without validation...');
-      await storeProviderAPIKey(selectedProvider, apiKey.trim());
+      await storeProviderAPIKey(apiKey.trim());
       console.log('API key saved successfully');
       Alert.alert('Success', 'API key saved! (Validation skipped)');
     } catch (error) {
@@ -177,7 +150,7 @@ export default function AIProviderSetupScreen({ navigation }) {
           onPress: async () => {
             try {
               setLoading(true);
-              await removeProviderAPIKey(selectedProvider);
+              await removeProviderAPIKey();
               setApiKey('');
               setConfirmApiKey('');
               setHasExistingKey(false);
@@ -205,38 +178,9 @@ export default function AIProviderSetupScreen({ navigation }) {
   };
 
   const openProviderKeyURL = () => {
-    const url = getProviderKeyURL(selectedProvider);
+    const url = getProviderKeyURL();
     if (url) {
       Linking.openURL(url);
-    }
-  };
-
-  const getProviderInstructions = () => {
-    if (selectedProvider === AI_PROVIDERS.OPENAI) {
-      return (
-        "1. Go to https://platform.openai.com/api-keys\n" +
-        "2. Sign in to your OpenAI account\n" +
-        "3. Click 'Create new secret key'\n" +
-        "4. Copy the key and paste it here\n\n" +
-        "Note: Requires billing setup. GPT-3.5-turbo costs ~$0.002 per message."
-      );
-    } else if (selectedProvider === AI_PROVIDERS.COHERE) {
-      return (
-        "1. Go to https://dashboard.cohere.com/api-keys\n" +
-        "2. Sign in or create a FREE account (no credit card needed!)\n" +
-        "3. Copy your 'Trial API Key' or create a new one\n" +
-        "4. Paste it here\n\n" +
-        "✨ Completely FREE! 1000 API calls/month with excellent responses."
-      );
-    } else {
-      return (
-        "1. Go to https://huggingface.co/settings/tokens\n" +
-        "2. Sign in or create a free account\n" +
-        "3. Click 'New token' and select 'Fine-grained'\n" +
-        "4. ✅ Check 'Make calls to Inference Providers' under Inference\n" +
-        "5. Create and copy the token, paste it here\n\n" +
-        "✨ Completely FREE! Uses GPT-2 for conversations."
-      );
     }
   };
 
@@ -248,97 +192,23 @@ export default function AIProviderSetupScreen({ navigation }) {
       />
       <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
         <View style={styles.header}>
+          <Text style={styles.title}>{getProviderDisplayName()}</Text>
           <Text style={styles.subtitle}>
-            Choose your AI provider and configure your API key
+            Configure your Google Gemini API key to enable AI-powered features
           </Text>
         </View>
 
-        {/* Provider Selection */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Select AI Provider</Text>
-          
-          <View style={styles.providerButtons}>
-            <TouchableOpacity
-              style={[
-                styles.providerButton,
-                selectedProvider === AI_PROVIDERS.COHERE && styles.providerButtonActive,
-              ]}
-              onPress={() => handleProviderChange(AI_PROVIDERS.COHERE)}
-            >
-              <Text
-                style={[
-                  styles.providerButtonText,
-                  selectedProvider === AI_PROVIDERS.COHERE &&
-                    styles.providerButtonTextActive,
-                ]}
-              >
-                ✨ Cohere
-              </Text>
-              <Text
-                style={[
-                  styles.providerButtonSubtext,
-                  selectedProvider === AI_PROVIDERS.COHERE &&
-                    styles.providerButtonTextActive,
-                ]}
-              >
-                FREE & Reliable
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.providerButton,
-                selectedProvider === AI_PROVIDERS.OPENAI && styles.providerButtonActive,
-              ]}
-              onPress={() => handleProviderChange(AI_PROVIDERS.OPENAI)}
-            >
-              <Text
-                style={[
-                  styles.providerButtonText,
-                  selectedProvider === AI_PROVIDERS.OPENAI && styles.providerButtonTextActive,
-                ]}
-              >
-                🤖 OpenAI GPT
-              </Text>
-              <Text
-                style={[
-                  styles.providerButtonSubtext,
-                  selectedProvider === AI_PROVIDERS.OPENAI && styles.providerButtonTextActive,
-                ]}
-              >
-                Premium (Paid)
-              </Text>
-            </TouchableOpacity>
-          </View>
-          
-          <View style={styles.providerButtons}>
-            <TouchableOpacity
-              style={[
-                styles.providerButton,
-                selectedProvider === AI_PROVIDERS.HUGGINGFACE && styles.providerButtonActive,
-              ]}
-              onPress={() => handleProviderChange(AI_PROVIDERS.HUGGINGFACE)}
-            >
-              <Text
-                style={[
-                  styles.providerButtonText,
-                  selectedProvider === AI_PROVIDERS.HUGGINGFACE &&
-                    styles.providerButtonTextActive,
-                ]}
-              >
-                🤗 Hugging Face
-              </Text>
-              <Text
-                style={[
-                  styles.providerButtonSubtext,
-                  selectedProvider === AI_PROVIDERS.HUGGINGFACE &&
-                    styles.providerButtonTextActive,
-                ]}
-              >
-                FREE (Experimental)
-              </Text>
-            </TouchableOpacity>
-          </View>
+        {/* Provider Info Card */}
+        <View style={styles.providerCard}>
+          <Text style={styles.providerCardTitle}>✨ Why Gemini 2.5 Flash?</Text>
+          <Text style={styles.providerCardText}>
+            • Latest and fastest Gemini model{'\n'}
+            • Excellent for document parsing{'\n'}
+            • Supports function calling for events{'\n'}
+            • Reliable chat responses{'\n'}
+            • Competitive pricing{'\n'}
+            • Latest Google AI technology
+          </Text>
         </View>
 
         {/* Instructions */}
@@ -349,7 +219,13 @@ export default function AIProviderSetupScreen({ navigation }) {
               <Text style={styles.linkButtonText}>Open URL →</Text>
             </TouchableOpacity>
           </View>
-          <Text style={styles.helpText}>{getProviderInstructions()}</Text>
+          <Text style={styles.helpText}>
+            1. Go to https://aistudio.google.com/app/apikey{'\n'}
+            2. Sign in with your Google account{'\n'}
+            3. Click 'Create API Key'{'\n'}
+            4. Copy the key and paste it below{'\n\n'}
+            💡 Free tier available with generous limits!
+          </Text>
         </View>
 
         {/* Current Key Display */}
@@ -387,13 +263,7 @@ export default function AIProviderSetupScreen({ navigation }) {
 
           <TextInput
             style={styles.input}
-            placeholder={
-              selectedProvider === AI_PROVIDERS.OPENAI 
-                ? 'sk-...' 
-                : selectedProvider === AI_PROVIDERS.COHERE
-                ? 'Your Cohere API key'
-                : 'hf_...'
-            }
+            placeholder="AIza..."
             value={apiKey}
             onChangeText={setApiKey}
             secureTextEntry
@@ -445,7 +315,7 @@ export default function AIProviderSetupScreen({ navigation }) {
         <View style={styles.securityNote}>
           <Text style={styles.securityText}>
             🔒 Your API key is stored securely on your device and is never shared with
-            anyone except the AI provider you selected.
+            anyone except Google Gemini.
           </Text>
         </View>
       </ScrollView>
@@ -463,6 +333,14 @@ const styles = StyleSheet.create({
   },
   header: {
     marginBottom: 24,
+    alignItems: 'center',
+  },
+  title: {
+    fontSize: fonts.sizes.extraLarge,
+    fontWeight: '700',
+    color: colors.deepGreen,
+    marginBottom: 8,
+    textAlign: 'center',
   },
   subtitle: {
     fontSize: fonts.sizes.body,
@@ -470,6 +348,25 @@ const styles = StyleSheet.create({
     opacity: 0.8,
     lineHeight: 22,
     textAlign: 'center',
+  },
+  providerCard: {
+    backgroundColor: colors.primary + '15',
+    padding: 20,
+    borderRadius: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: colors.primary,
+    marginBottom: 32,
+  },
+  providerCardTitle: {
+    fontSize: fonts.sizes.title,
+    fontWeight: '600',
+    color: colors.primary,
+    marginBottom: 12,
+  },
+  providerCardText: {
+    fontSize: fonts.sizes.body,
+    color: colors.deepGreen,
+    lineHeight: 24,
   },
   section: {
     marginBottom: 32,
@@ -495,38 +392,6 @@ const styles = StyleSheet.create({
     color: colors.surface,
     fontSize: fonts.sizes.small,
     fontWeight: '600',
-  },
-  providerButtons: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 12,
-  },
-  providerButton: {
-    flex: 1,
-    padding: 16,
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#E5E7EB',
-    alignItems: 'center',
-  },
-  providerButtonActive: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primary + '10',
-  },
-  providerButtonText: {
-    fontSize: fonts.sizes.body,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 4,
-  },
-  providerButtonTextActive: {
-    color: colors.primary,
-  },
-  providerButtonSubtext: {
-    fontSize: fonts.sizes.small,
-    color: colors.text,
-    opacity: 0.6,
   },
   instructionsHeader: {
     flexDirection: 'row',
@@ -611,4 +476,3 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
 });
-

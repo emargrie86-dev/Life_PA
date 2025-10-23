@@ -1,14 +1,11 @@
 /**
  * AI-Powered Document Parser (formerly aiReceiptParser)
- * Uses AI models to intelligently extract data from various document types
+ * Uses Google Gemini AI to intelligently extract data from various document types
  * Supports receipts, invoices, utility bills, MOT certificates, and more
  * Now includes advanced document classification and type-specific extraction
  */
 
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getChatCompletion as getOpenAICompletion } from './openai';
-import { getChatCompletion as getCohereCompletion } from './cohere';
-import { getChatCompletion as getHuggingFaceCompletion } from './huggingface';
+import { getChatCompletion as getGeminiCompletion } from './gemini';
 import { parseDocument, isDocumentParsingAvailable } from './documentParser';
 
 /**
@@ -76,50 +73,22 @@ export const parseReceiptWithAI = async (ocrText) => {
   }
 
   try {
-    // Get the active AI provider
-    const activeProvider = await AsyncStorage.getItem('activeAIProvider') || 'openai';
-    console.log('Using AI provider:', activeProvider);
+    console.log('Using Gemini AI for parsing');
 
     // Create the prompt for AI
     const prompt = createReceiptParsingPrompt(ocrText);
 
-    // Get AI completion
-    let aiResponse;
-    switch (activeProvider) {
-      case 'openai':
-        aiResponse = await getOpenAICompletion([
-          {
-            role: 'system',
-            content: 'You are a receipt data extraction assistant. Extract structured data from receipt text and return it as valid JSON. Be accurate and precise.'
-          },
-          {
-            role: 'user',
-            content: prompt
-          }
-        ]);
-        break;
-      
-      case 'cohere':
-        aiResponse = await getCohereCompletion([
-          {
-            role: 'user',
-            content: prompt
-          }
-        ]);
-        break;
-      
-      case 'huggingface':
-        aiResponse = await getHuggingFaceCompletion([
-          {
-            role: 'user',
-            content: prompt
-          }
-        ]);
-        break;
-      
-      default:
-        throw new Error('Invalid AI provider');
-    }
+    // Get AI completion from Gemini
+    const aiResponse = await getGeminiCompletion([
+      {
+        role: 'system',
+        content: 'You are a receipt data extraction assistant. Extract structured data from receipt text and return it as valid JSON. Be accurate and precise.'
+      },
+      {
+        role: 'user',
+        content: prompt
+      }
+    ]);
 
     console.log('AI response received:', aiResponse?.substring(0, 200));
 
@@ -254,11 +223,9 @@ const fallbackParsing = (ocrText) => {
  */
 export const isAIParsingAvailable = async () => {
   try {
-    const provider = await AsyncStorage.getItem('activeAIProvider');
-    const apiKey = await AsyncStorage.getItem(`${provider}ApiKey`);
-    return provider && apiKey;
+    const { getGeminiClient } = require('./gemini');
+    return getGeminiClient() !== null;
   } catch (error) {
     return false;
   }
 };
-
