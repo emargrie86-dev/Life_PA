@@ -11,6 +11,7 @@ import { colors } from '../theme/colors';
 import { fonts } from '../theme/fonts';
 import { getTasks } from '../services/taskService';
 import { getUserDocuments } from '../services/documentService';
+import { getHabits, getCompletionForDate } from '../services/habitService';
 import Logger from '../utils/logger';
 
 export default function HomeScreen({ navigation }) {
@@ -19,11 +20,14 @@ export default function HomeScreen({ navigation }) {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [upcomingEvents, setUpcomingEvents] = useState([]);
   const [upcomingExpenses, setUpcomingExpenses] = useState([]);
+  const [habits, setHabits] = useState([]);
+  const [habitsCompletedToday, setHabitsCompletedToday] = useState(new Set());
 
   // Load upcoming tasks and expenses
   useEffect(() => {
     loadUpcomingEvents();
     loadUpcomingExpenses();
+    loadHabits();
   }, []);
 
   // Reload when screen comes into focus
@@ -31,6 +35,7 @@ export default function HomeScreen({ navigation }) {
     const unsubscribe = navigation.addListener('focus', () => {
       loadUpcomingEvents();
       loadUpcomingExpenses();
+      loadHabits();
     });
     return unsubscribe;
   }, [navigation]);
@@ -102,6 +107,28 @@ export default function HomeScreen({ navigation }) {
     } catch (error) {
       Logger.error('Error loading upcoming expenses:', error);
       setUpcomingExpenses([]);
+    }
+  };
+
+  const loadHabits = async () => {
+    try {
+      const habitsData = await getHabits();
+      const activeHabits = habitsData.filter(h => h.isActive).slice(0, 3); // Show only first 3 active habits
+      setHabits(activeHabits);
+
+      // Check which habits are completed today
+      const today = new Date().toISOString().split('T')[0];
+      const completedSet = new Set();
+      for (const habit of activeHabits) {
+        const completion = await getCompletionForDate(habit.id, today);
+        if (completion) {
+          completedSet.add(habit.id);
+        }
+      }
+      setHabitsCompletedToday(completedSet);
+    } catch (error) {
+      Logger.error('Error loading habits:', error);
+      setHabits([]);
     }
   };
 
@@ -303,7 +330,67 @@ export default function HomeScreen({ navigation }) {
               <Text style={styles.quickActionText}>View Documents</Text>
             </TouchableOpacity>
           </MotiView>
+
+          {/* 6. Habits */}
+          <MotiView
+            from={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ type: 'spring', damping: 15, delay: 600 }}
+          >
+            <TouchableOpacity 
+              style={styles.quickActionButton}
+              onPress={() => navigation.navigate('Habits')}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.quickActionIcon, { backgroundColor: colors.success + '20' || '#4CAF5020' }]}>
+                <Text style={styles.quickActionEmoji}>🎯</Text>
+              </View>
+              <Text style={styles.quickActionText}>Habits</Text>
+            </TouchableOpacity>
+          </MotiView>
         </View>
+
+        {/* Habits Widget */}
+        {habits.length > 0 && (
+          <CardContainer elevated style={styles.eventsWrapper}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Today's Habits</Text>
+              <TouchableOpacity onPress={() => navigation.navigate('Habits')}>
+                <Text style={styles.viewAllText}>View All</Text>
+              </TouchableOpacity>
+            </View>
+
+            {habits.map((habit, index) => {
+              const isCompleted = habitsCompletedToday.has(habit.id);
+              const { progress } = habit;
+              
+              return (
+                <TouchableOpacity
+                  key={habit.id}
+                  style={styles.habitItem}
+                  onPress={() => navigation.navigate('HabitDetail', { habitId: habit.id })}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.habitLeft}>
+                    <View style={[
+                      styles.habitCheckbox,
+                      isCompleted && styles.habitCheckboxCompleted
+                    ]}>
+                      {isCompleted && <Text style={styles.habitCheckmark}>✓</Text>}
+                    </View>
+                    <View style={styles.habitInfo}>
+                      <Text style={styles.habitName}>{habit.name}</Text>
+                      <View style={styles.habitStats}>
+                        <Text style={styles.habitStat}>🔥 {progress.currentStreak} day streak</Text>
+                        <Text style={styles.habitStat}>• {progress.completionRate}%</Text>
+                      </View>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </CardContainer>
+        )}
 
         {/* Upcoming Events Wrapper */}
         <CardContainer elevated style={styles.eventsWrapper}>
@@ -427,6 +514,18 @@ export default function HomeScreen({ navigation }) {
               >
                 <Text style={styles.menuItemIcon}>📊</Text>
                 <Text style={styles.menuItemText}>Analytics</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={styles.menuItem}
+                onPress={() => {
+                  setMenuVisible(false);
+                  navigation.navigate('Habits');
+                }}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.menuItemIcon}>🎯</Text>
+                <Text style={styles.menuItemText}>Habits</Text>
               </TouchableOpacity>
 
               <TouchableOpacity 
@@ -683,6 +782,55 @@ const styles = StyleSheet.create({
   },
   logoutText: {
     color: colors.danger,
+  },
+  habitItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  habitLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  habitCheckbox: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  habitCheckboxCompleted: {
+    backgroundColor: colors.primary,
+  },
+  habitCheckmark: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  habitInfo: {
+    flex: 1,
+  },
+  habitName: {
+    fontSize: fonts.sizes.body,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 4,
+  },
+  habitStats: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  habitStat: {
+    fontSize: fonts.sizes.small,
+    color: colors.textSecondary,
+    marginRight: 8,
   },
 });
 

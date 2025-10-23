@@ -17,6 +17,9 @@ import AIProviderSetupScreen from '../screens/AIProviderSetupScreen';
 import DocumentsListScreen from '../screens/DocumentsListScreen';
 import DocumentDetailScreen from '../screens/DocumentDetailScreen';
 import DocumentPreviewScreen from '../screens/DocumentPreviewScreen';
+import HabitsScreen from '../screens/HabitsScreen';
+import HabitDetailScreen from '../screens/HabitDetailScreen';
+import AddHabitScreen from '../screens/AddHabitScreen';
 
 const Stack = createStackNavigator();
 
@@ -41,6 +44,9 @@ export default function MainTabs() {
       <Stack.Screen name="Chat" component={ChatScreen} />
       <Stack.Screen name="APIKeySetup" component={APIKeySetupScreen} />
       <Stack.Screen name="AIProviderSetup" component={AIProviderSetupScreen} />
+      <Stack.Screen name="Habits" component={HabitsScreen} />
+      <Stack.Screen name="HabitDetail" component={HabitDetailScreen} />
+      <Stack.Screen name="AddHabit" component={AddHabitScreen} />
     </Stack.Navigator>
   );
 }

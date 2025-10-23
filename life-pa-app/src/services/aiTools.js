@@ -78,6 +78,58 @@ export const AI_TOOLS = [
     description: 'Trigger the document upload feature to capture and save receipt or document information',
     parameter_definitions: {},
   },
+  {
+    name: 'create_habit',
+    description: 'Create a new habit for the user to track. Use this when user wants to build a new positive routine or habit.',
+    parameter_definitions: {
+      name: {
+        description: 'The name of the habit (e.g., "Drink 2L of water", "Exercise 30 minutes")',
+        type: 'string',
+        required: true,
+      },
+      description: {
+        description: 'Why this habit is beneficial or important',
+        type: 'string',
+        required: false,
+      },
+      cue: {
+        description: 'When or where the habit should be triggered (e.g., "After morning coffee", "9am daily alarm")',
+        type: 'string',
+        required: false,
+      },
+      routine: {
+        description: 'The specific action to perform (e.g., "Fill water bottle and drink 500ml")',
+        type: 'string',
+        required: false,
+      },
+      reward: {
+        description: 'The benefit or feeling from completing the habit (e.g., "Feel energized and hydrated")',
+        type: 'string',
+        required: false,
+      },
+      frequency: {
+        description: 'How often to do this habit: "daily" or "weekly"',
+        type: 'string',
+        required: false,
+      },
+    },
+  },
+  {
+    name: 'log_habit_completion',
+    description: 'Mark a habit as completed for today. Use when user confirms they have done their habit.',
+    parameter_definitions: {
+      habit_name: {
+        description: 'The name of the habit to mark as complete',
+        type: 'string',
+        required: true,
+      },
+    },
+  },
+  {
+    name: 'view_habits',
+    description: 'View all habits and their progress. Use when user asks to see their habits or habit tracking.',
+    parameter_definitions: {},
+  },
 ];
 
 /**

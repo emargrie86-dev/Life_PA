@@ -8,6 +8,7 @@ import { collection, addDoc, query, where, getDocs, orderBy, limit } from 'fireb
 import { parseNaturalDate, parseNaturalTime, getCurrentDateTimeContext } from './aiTools';
 import { validateEventParams, validateReminderParams, ValidationError } from '../utils/validation';
 import { handleAsyncOperation, getUserFriendlyError } from '../utils/errorHandler';
+import { createHabit, getHabits, logHabitCompletion, HABIT_FREQUENCIES } from './habitService';
 
 /**
  * Execute a function call from the AI
@@ -38,6 +39,18 @@ export const executeFunction = async (functionName, parameters) => {
       case 'scan_receipt': // backward compatibility
         console.log('Calling triggerDocumentUpload...');
         return await triggerDocumentUpload();
+      
+      case 'create_habit':
+        console.log('Calling createHabitFromAI...');
+        return await createHabitFromAI(parameters);
+      
+      case 'log_habit_completion':
+        console.log('Calling logHabitCompletionFromAI...');
+        return await logHabitCompletionFromAI(parameters);
+      
+      case 'view_habits':
+        console.log('Calling viewHabits...');
+        return await viewHabits();
       
       default:
         throw new Error(`Unknown function: ${functionName}`);
@@ -308,6 +321,183 @@ const triggerDocumentUpload = async () => {
     action: 'navigate_to_scan',
     message: 'Opening document upload...',
   };
+};
+
+/**
+ * Create a new habit from AI
+ */
+const createHabitFromAI = async (params) => {
+  console.log('=== CREATE HABIT FUNCTION ===');
+  console.log('Raw params received:', JSON.stringify(params, null, 2));
+  
+  const user = getCurrentUser();
+  if (!user) {
+    throw new Error('User not authenticated. Please log in to create habits.');
+  }
+
+  const { name, description, cue, routine, reward, frequency } = params;
+  
+  // Validate name
+  if (!name || name.trim().length === 0) {
+    return {
+      success: false,
+      error: 'Habit name is required',
+      message: 'Please provide a name for the habit',
+    };
+  }
+
+  // Determine frequency
+  let targetFrequency = HABIT_FREQUENCIES.DAILY;
+  if (frequency) {
+    const freqLower = frequency.toLowerCase();
+    if (freqLower.includes('week')) {
+      targetFrequency = HABIT_FREQUENCIES.WEEKLY;
+    }
+  }
+
+  const habitData = {
+    name: name.trim(),
+    description: description ? description.trim() : '',
+    cue: cue ? cue.trim() : '',
+    routine: routine ? routine.trim() : '',
+    reward: reward ? reward.trim() : '',
+    targetFrequency,
+  };
+
+  try {
+    const result = await createHabit(habitData);
+    console.log('✅ Habit created successfully:', result.id);
+    
+    return {
+      success: true,
+      habitId: result.id,
+      message: `Habit "${name}" created successfully! Start tracking it today.`,
+      data: result.habit,
+    };
+  } catch (error) {
+    console.error('Error creating habit:', error);
+    const errorMessage = getUserFriendlyError(error, 'Failed to create habit');
+    return {
+      success: false,
+      error: errorMessage,
+      message: errorMessage,
+    };
+  }
+};
+
+/**
+ * Log habit completion from AI
+ */
+const logHabitCompletionFromAI = async (params) => {
+  console.log('=== LOG HABIT COMPLETION ===');
+  console.log('Raw params received:', JSON.stringify(params, null, 2));
+  
+  const user = getCurrentUser();
+  if (!user) {
+    throw new Error('User not authenticated. Please log in to track habits.');
+  }
+
+  const { habit_name } = params;
+  
+  if (!habit_name || habit_name.trim().length === 0) {
+    return {
+      success: false,
+      error: 'Habit name is required',
+      message: 'Please specify which habit to mark as complete',
+    };
+  }
+
+  try {
+    // Find the habit by name
+    const habits = await getHabits();
+    const habit = habits.find(h => 
+      h.name.toLowerCase().includes(habit_name.toLowerCase()) ||
+      habit_name.toLowerCase().includes(h.name.toLowerCase())
+    );
+
+    if (!habit) {
+      return {
+        success: false,
+        error: 'Habit not found',
+        message: `Could not find a habit matching "${habit_name}". Please check the name and try again.`,
+      };
+    }
+
+    // Log completion
+    const result = await logHabitCompletion(habit.id);
+    
+    if (!result.success) {
+      return {
+        success: false,
+        error: result.message,
+        message: result.message,
+      };
+    }
+
+    return {
+      success: true,
+      habitId: habit.id,
+      message: `Great job! "${habit.name}" marked as complete for today. Keep the streak going! 🔥`,
+    };
+  } catch (error) {
+    console.error('Error logging habit completion:', error);
+    const errorMessage = getUserFriendlyError(error, 'Failed to log habit completion');
+    return {
+      success: false,
+      error: errorMessage,
+      message: errorMessage,
+    };
+  }
+};
+
+/**
+ * View all habits
+ */
+const viewHabits = async () => {
+  console.log('=== VIEW HABITS ===');
+  
+  const user = getCurrentUser();
+  if (!user) {
+    throw new Error('User not authenticated');
+  }
+
+  try {
+    const habits = await getHabits();
+    
+    if (habits.length === 0) {
+      return {
+        success: true,
+        count: 0,
+        message: 'You have no habits yet. Would you like to create one?',
+        data: [],
+      };
+    }
+
+    // Format habits for display
+    const formattedHabits = habits.map(habit => {
+      const { name, progress, targetFrequency } = habit;
+      const { currentStreak, completionRate } = progress || { currentStreak: 0, completionRate: 0 };
+      
+      return `🎯 ${name}\n   Frequency: ${targetFrequency}\n   Current Streak: ${currentStreak} days\n   30-Day Rate: ${completionRate}%`;
+    }).join('\n\n');
+
+    const message = `Here are your habits:\n\n${formattedHabits}`;
+
+    return {
+      success: true,
+      count: habits.length,
+      message: message,
+      data: habits,
+    };
+  } catch (error) {
+    console.error('Error fetching habits:', error);
+    return {
+      success: false,
+      error: error.message,
+      message: 'Unable to fetch habits at this moment. Please try viewing them in the app.',
+      data: [],
+    };
+  }
 };
 
 /**
