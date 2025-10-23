@@ -9,7 +9,7 @@ import { colors } from '../theme/colors';
 import { fonts } from '../theme/fonts';
 import { getCategoryById } from '../theme/categories';
 import { getTasks } from '../services/taskService';
-import { getUserReceipts } from '../services/receiptService';
+import { getUserDocuments } from '../services/documentService';
 
 export default function HomeScreen({ navigation }) {
   const user = getCurrentUser();
@@ -78,7 +78,7 @@ export default function HomeScreen({ navigation }) {
     try {
       if (!user) return;
       
-      const receipts = await getUserReceipts(user.uid, 100);
+      const receipts = await getUserDocuments(user.uid, 100);
       
       // Filter receipts with due dates and show upcoming/overdue ones
       const now = new Date();
@@ -292,7 +292,7 @@ export default function HomeScreen({ navigation }) {
           >
             <TouchableOpacity 
               style={styles.quickActionButton}
-              onPress={() => navigation.navigate('ReceiptsList')}
+              onPress={() => navigation.navigate('DocumentsList')}
               activeOpacity={0.7}
             >
               <View style={[styles.quickActionIcon, { backgroundColor: colors.accent + '20' }]}>
@@ -376,7 +376,7 @@ export default function HomeScreen({ navigation }) {
           {/* Section Header */}
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Upcoming Expenses</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('ReceiptsList')}>
+            <TouchableOpacity onPress={() => navigation.navigate('DocumentsList')}>
               <Text style={styles.viewAllText}>View All</Text>
             </TouchableOpacity>
           </View>
@@ -399,7 +399,7 @@ export default function HomeScreen({ navigation }) {
                 >
                   <TouchableOpacity 
                     activeOpacity={0.7}
-                    onPress={() => navigation.navigate('ReceiptDetail', { receiptId: expense.id })}
+                    onPress={() => navigation.navigate('DocumentDetail', { documentId: expense.id })}
                   >
                     <View style={[styles.eventCard, !isLastItem && styles.eventCardWithBorder]}>
                       <View style={styles.eventContent}>

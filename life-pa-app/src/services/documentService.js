@@ -1,6 +1,7 @@
 /**
- * Receipt Service
- * Handles CRUD operations for receipts in Firestore
+ * Document Service (formerly receiptService.js)
+ * Handles CRUD operations for documents in Firestore
+ * Supports receipts, invoices, utility bills, and all document types
  */
 
 import { 
@@ -20,18 +21,17 @@ import {
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { db, storage } from './firebase';
 
-const RECEIPTS_COLLECTION = 'receipts';
+const DOCUMENTS_COLLECTION = 'receipts'; // Keep as 'receipts' for backward compatibility with existing data
 
 /**
- * Upload receipt image to Firebase Storage
+ * Upload document image to Firebase Storage
  * @param {string} userId - User ID
  * @param {string} imageUri - Local image URI
  * @returns {Promise<string>} Download URL
  */
-export const uploadReceiptImage = async (userId, imageUri) => {
-  console.log('uploadReceiptImage called with:', { userId, imageUri });
+export const uploadDocumentImage = async (userId, imageUri) => {
+  console.log('uploadDocumentImage called with:', { userId, imageUri });
   
-  // Quick check: if Storage isn't properly configured, skip upload
   try {
     console.log('Attempting to upload image to Firebase Storage...');
     console.log('Image URI:', imageUri);
@@ -45,7 +45,7 @@ export const uploadReceiptImage = async (userId, imageUri) => {
       const response = await fetch(imageUri);
       const blob = await response.blob();
       
-      const filename = `receipts/${userId}/${Date.now()}.jpg`;
+      const filename = `documents/${userId}/${Date.now()}.jpg`;
       const storageRef = ref(storage, filename);
       
       await uploadBytes(storageRef, blob);
@@ -65,7 +65,7 @@ export const uploadReceiptImage = async (userId, imageUri) => {
     
     // WORKAROUND: Use local URI when Storage fails
     console.warn('⚠️ WORKAROUND ACTIVE: Using local image URI');
-    console.warn('⚠️ Receipt will save but image won\'t persist after page refresh');
+    console.warn('⚠️ Document will save but image won\'t persist after page refresh');
     console.warn('⚠️ To fix: Configure Firebase Storage CORS settings');
     
     // Convert blob URI to base64 for better persistence
@@ -88,64 +88,65 @@ export const uploadReceiptImage = async (userId, imageUri) => {
 };
 
 /**
- * Create a new receipt
- * @param {object} receiptData - Receipt data
- * @returns {Promise<string>} Receipt ID
+ * Create a new document
+ * @param {object} documentData - Document data
+ * @returns {Promise<string>} Document ID
  */
-export const createReceipt = async (receiptData) => {
+export const createDocument = async (documentData) => {
   try {
-    const receiptsRef = collection(db, RECEIPTS_COLLECTION);
+    const documentsRef = collection(db, DOCUMENTS_COLLECTION);
     
-    const receipt = {
-      ...receiptData,
+    const document = {
+      ...documentData,
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     };
     
-    const docRef = await addDoc(receiptsRef, receipt);
+    const docRef = await addDoc(documentsRef, document);
+    console.log('✅ Document created with ID:', docRef.id);
     return docRef.id;
   } catch (error) {
-    console.error('Error creating receipt:', error);
-    throw new Error('Failed to create receipt');
+    console.error('Error creating document:', error);
+    throw new Error('Failed to create document');
   }
 };
 
 /**
- * Get receipt by ID
- * @param {string} receiptId - Receipt ID
- * @returns {Promise<object>} Receipt data
+ * Get document by ID
+ * @param {string} documentId - Document ID
+ * @returns {Promise<object>} Document data
  */
-export const getReceipt = async (receiptId) => {
+export const getDocument = async (documentId) => {
   try {
-    const receiptRef = doc(db, RECEIPTS_COLLECTION, receiptId);
-    const receiptDoc = await getDoc(receiptRef);
+    const documentRef = doc(db, DOCUMENTS_COLLECTION, documentId);
+    const documentDoc = await getDoc(documentRef);
     
-    if (!receiptDoc.exists()) {
-      throw new Error('Receipt not found');
+    if (!documentDoc.exists()) {
+      throw new Error('Document not found');
     }
     
     return {
-      id: receiptDoc.id,
-      ...receiptDoc.data(),
+      id: documentDoc.id,
+      ...documentDoc.data(),
     };
   } catch (error) {
-    console.error('Error getting receipt:', error);
+    console.error('Error getting document:', error);
     throw error;
   }
 };
 
 /**
- * Get all receipts for a user
+ * Get all documents for a user
  * @param {string} userId - User ID
  * @param {number} maxResults - Maximum number of results
- * @returns {Promise<Array>} Array of receipts
+ * @returns {Promise<Array>} Array of documents
  */
-export const getUserReceipts = async (userId, maxResults = 100) => {
+export const getUserDocuments = async (userId, maxResults = 100) => {
   try {
-    console.log('getUserReceipts called with userId:', userId);
-    const receiptsRef = collection(db, RECEIPTS_COLLECTION);
+    console.log('getUserDocuments called with userId:', userId);
+    const documentsRef = collection(db, DOCUMENTS_COLLECTION);
     const q = query(
-      receiptsRef,
+      documentsRef,
       where('userId', '==', userId),
       orderBy('date', 'desc'),
       limit(maxResults)
@@ -155,76 +156,76 @@ export const getUserReceipts = async (userId, maxResults = 100) => {
     const querySnapshot = await getDocs(q);
     console.log('Query returned', querySnapshot.size, 'documents');
     
-    const receipts = [];
+    const documents = [];
     
     querySnapshot.forEach((doc) => {
       const data = doc.data();
-      console.log('Receipt doc:', doc.id, {
+      console.log('Document:', doc.id, {
         merchant: data.merchantName,
         amount: data.totalAmount,
-        currency: data.currency,
+        type: data.documentType,
         userId: data.userId,
         date: data.date,
       });
-      receipts.push({
+      documents.push({
         id: doc.id,
         ...data,
       });
     });
     
-    console.log('Returning', receipts.length, 'receipts');
-    return receipts;
+    console.log('Returning', documents.length, 'documents');
+    return documents;
   } catch (error) {
-    console.error('Error getting user receipts:', error);
-    throw new Error('Failed to fetch receipts');
+    console.error('Error getting user documents:', error);
+    throw new Error('Failed to fetch documents');
   }
 };
 
 /**
- * Get receipts by category
+ * Get documents by category
  * @param {string} userId - User ID
- * @param {string} category - Receipt category
- * @returns {Promise<Array>} Array of receipts
+ * @param {string} category - Document category
+ * @returns {Promise<Array>} Array of documents
  */
-export const getReceiptsByCategory = async (userId, category) => {
+export const getDocumentsByCategory = async (userId, category) => {
   try {
-    const receiptsRef = collection(db, RECEIPTS_COLLECTION);
+    const documentsRef = collection(db, DOCUMENTS_COLLECTION);
     const q = query(
-      receiptsRef,
+      documentsRef,
       where('userId', '==', userId),
       where('category', '==', category),
       orderBy('date', 'desc')
     );
     
     const querySnapshot = await getDocs(q);
-    const receipts = [];
+    const documents = [];
     
     querySnapshot.forEach((doc) => {
-      receipts.push({
+      documents.push({
         id: doc.id,
         ...doc.data(),
       });
     });
     
-    return receipts;
+    return documents;
   } catch (error) {
-    console.error('Error getting receipts by category:', error);
-    throw new Error('Failed to fetch receipts');
+    console.error('Error getting documents by category:', error);
+    throw new Error('Failed to fetch documents');
   }
 };
 
 /**
- * Get receipts in date range
+ * Get documents in date range
  * @param {string} userId - User ID
  * @param {Date} startDate - Start date
  * @param {Date} endDate - End date
- * @returns {Promise<Array>} Array of receipts
+ * @returns {Promise<Array>} Array of documents
  */
-export const getReceiptsByDateRange = async (userId, startDate, endDate) => {
+export const getDocumentsByDateRange = async (userId, startDate, endDate) => {
   try {
-    const receiptsRef = collection(db, RECEIPTS_COLLECTION);
+    const documentsRef = collection(db, DOCUMENTS_COLLECTION);
     const q = query(
-      receiptsRef,
+      documentsRef,
       where('userId', '==', userId),
       where('date', '>=', Timestamp.fromDate(startDate)),
       where('date', '<=', Timestamp.fromDate(endDate)),
@@ -232,53 +233,54 @@ export const getReceiptsByDateRange = async (userId, startDate, endDate) => {
     );
     
     const querySnapshot = await getDocs(q);
-    const receipts = [];
+    const documents = [];
     
     querySnapshot.forEach((doc) => {
-      receipts.push({
+      documents.push({
         id: doc.id,
         ...doc.data(),
       });
     });
     
-    return receipts;
+    return documents;
   } catch (error) {
-    console.error('Error getting receipts by date range:', error);
-    throw new Error('Failed to fetch receipts');
+    console.error('Error getting documents by date range:', error);
+    throw new Error('Failed to fetch documents');
   }
 };
 
 /**
- * Update receipt
- * @param {string} receiptId - Receipt ID
+ * Update document
+ * @param {string} documentId - Document ID
  * @param {object} updates - Fields to update
  * @returns {Promise<void>}
  */
-export const updateReceipt = async (receiptId, updates) => {
+export const updateDocument = async (documentId, updates) => {
   try {
-    const receiptRef = doc(db, RECEIPTS_COLLECTION, receiptId);
+    const documentRef = doc(db, DOCUMENTS_COLLECTION, documentId);
     
-    await updateDoc(receiptRef, {
+    await updateDoc(documentRef, {
       ...updates,
       updatedAt: Timestamp.now(),
     });
+    console.log('✅ Document updated:', documentId);
   } catch (error) {
-    console.error('Error updating receipt:', error);
-    throw new Error('Failed to update receipt');
+    console.error('Error updating document:', error);
+    throw new Error('Failed to update document');
   }
 };
 
 /**
- * Delete receipt
- * @param {string} receiptId - Receipt ID
+ * Delete document
+ * @param {string} documentId - Document ID
  * @param {string} imageUrl - Image URL to delete from storage
  * @returns {Promise<void>}
  */
-export const deleteReceipt = async (receiptId, imageUrl) => {
+export const deleteDocument = async (documentId, imageUrl) => {
   try {
     // Delete from Firestore
-    const receiptRef = doc(db, RECEIPTS_COLLECTION, receiptId);
-    await deleteDoc(receiptRef);
+    const documentRef = doc(db, DOCUMENTS_COLLECTION, documentId);
+    await deleteDoc(documentRef);
     
     // Delete image from Storage if exists
     if (imageUrl) {
@@ -289,9 +291,10 @@ export const deleteReceipt = async (receiptId, imageUrl) => {
         console.warn('Failed to delete image from storage:', error);
       }
     }
+    console.log('✅ Document deleted:', documentId);
   } catch (error) {
-    console.error('Error deleting receipt:', error);
-    throw new Error('Failed to delete receipt');
+    console.error('Error deleting document:', error);
+    throw new Error('Failed to delete document');
   }
 };
 
@@ -304,19 +307,19 @@ export const deleteReceipt = async (receiptId, imageUrl) => {
  */
 export const getTotalsByCategory = async (userId, startDate = null, endDate = null) => {
   try {
-    let receipts;
+    let documents;
     
     if (startDate && endDate) {
-      receipts = await getReceiptsByDateRange(userId, startDate, endDate);
+      documents = await getDocumentsByDateRange(userId, startDate, endDate);
     } else {
-      receipts = await getUserReceipts(userId);
+      documents = await getUserDocuments(userId);
     }
     
     const totals = {};
     
-    receipts.forEach(receipt => {
-      const category = receipt.category || 'Other';
-      const amount = receipt.totalAmount || 0;
+    documents.forEach(document => {
+      const category = document.category || 'Other';
+      const amount = document.totalAmount || 0;
       
       totals[category] = (totals[category] || 0) + amount;
     });
@@ -329,25 +332,37 @@ export const getTotalsByCategory = async (userId, startDate = null, endDate = nu
 };
 
 /**
- * Search receipts by merchant name
+ * Search documents by merchant name
  * @param {string} userId - User ID
  * @param {string} searchTerm - Search term
- * @returns {Promise<Array>} Matching receipts
+ * @returns {Promise<Array>} Matching documents
  */
-export const searchReceipts = async (userId, searchTerm) => {
+export const searchDocuments = async (userId, searchTerm) => {
   try {
-    const receipts = await getUserReceipts(userId);
+    const documents = await getUserDocuments(userId);
     
     const searchLower = searchTerm.toLowerCase();
     
-    return receipts.filter(receipt => 
-      (receipt.merchantName || '').toLowerCase().includes(searchLower) ||
-      (receipt.notes || '').toLowerCase().includes(searchLower) ||
-      (receipt.extractedText || '').toLowerCase().includes(searchLower)
+    return documents.filter(document => 
+      (document.merchantName || '').toLowerCase().includes(searchLower) ||
+      (document.notes || '').toLowerCase().includes(searchLower) ||
+      (document.extractedText || '').toLowerCase().includes(searchLower) ||
+      (document.documentType || '').toLowerCase().includes(searchLower)
     );
   } catch (error) {
-    console.error('Error searching receipts:', error);
-    throw new Error('Failed to search receipts');
+    console.error('Error searching documents:', error);
+    throw new Error('Failed to search documents');
   }
 };
+
+// Backward compatibility exports (keep old function names as aliases)
+export const uploadReceiptImage = uploadDocumentImage;
+export const createReceipt = createDocument;
+export const getReceipt = getDocument;
+export const getUserReceipts = getUserDocuments;
+export const getReceiptsByCategory = getDocumentsByCategory;
+export const getReceiptsByDateRange = getDocumentsByDateRange;
+export const updateReceipt = updateDocument;
+export const deleteReceipt = deleteDocument;
+export const searchReceipts = searchDocuments;
 

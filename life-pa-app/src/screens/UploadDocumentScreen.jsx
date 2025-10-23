@@ -19,8 +19,8 @@ import { colors } from '../theme/colors';
 import { fonts } from '../theme/fonts';
 import { extractTextFromImage } from '../services/ocrService';
 import { parseReceiptText } from '../utils/textParsing';
-import { parseReceiptWithAI, isAIParsingAvailable } from '../services/aiReceiptParser';
-import { createReceipt, uploadReceiptImage } from '../services/receiptService';
+import { parseReceiptWithAI, parseDocumentWithAI, isAIParsingAvailable } from '../services/aiDocumentParser';
+import { createDocument, uploadDocumentImage } from '../services/documentService';
 import { auth } from '../services/firebase';
 
 // Conditionally import Camera only on native platforms
@@ -35,7 +35,7 @@ if (Platform.OS !== 'web') {
   }
 }
 
-export default function ScanReceiptScreen({ navigation }) {
+export default function UploadDocumentScreen({ navigation }) {
   const [hasPermission, setHasPermission] = useState(null);
   const [cameraType, setCameraType] = useState(CameraType?.back || 'back');
   const [capturedImage, setCapturedImage] = useState(null);
@@ -221,15 +221,15 @@ export default function ScanReceiptScreen({ navigation }) {
   const handleProcessReceipt = async () => {
     if (!capturedImage) {
       if (Platform.OS === 'web') {
-        window.alert('No Image - Please capture or select a receipt image first.');
+        window.alert('No Image - Please capture or select a document image first.');
       } else {
-        Alert.alert('No Image', 'Please capture or select a receipt image first.');
+        Alert.alert('No Image', 'Please capture or select a document image first.');
       }
       return;
     }
 
     setIsProcessing(true);
-    console.log('=== STARTING RECEIPT PROCESSING ===');
+    console.log('=== STARTING DOCUMENT PROCESSING ===');
     console.log('Image URI:', capturedImage);
     console.log('File type:', capturedFileType);
 
@@ -267,20 +267,27 @@ export default function ScanReceiptScreen({ navigation }) {
         extractedText = 'OCR extraction failed - manual entry required';
       }
 
-      // Parse receipt data with AI (if available) or basic parsing
-      showToast('Parsing receipt data...', 'info');
-      console.log('Parsing receipt text...');
+      // Parse document data with AI (if available) or basic parsing
+      showToast('Analyzing document...', 'info');
+      console.log('Parsing document text...');
       
       let parsedData;
       const aiAvailable = await isAIParsingAvailable();
       
       if (aiAvailable && extractedText && extractedText.trim().length > 50) {
-        console.log('Using AI-powered parsing...');
-        showToast('Using AI to extract receipt details...', 'info');
+        console.log('Using AI-powered document parsing with classification...');
+        showToast('Using AI to classify and extract document details...', 'info');
         try {
-          parsedData = await parseReceiptWithAI(extractedText);
+          // Use enhanced document parser with classification
+          parsedData = await parseDocumentWithAI(extractedText);
           console.log('AI parsed data:', parsedData);
-          showToast('AI extraction complete!', 'success');
+          
+          // Show document type to user
+          if (parsedData.documentType) {
+            showToast(`Document detected: ${parsedData.documentType}`, 'success');
+          } else {
+            showToast('AI extraction complete!', 'success');
+          }
         } catch (aiError) {
           console.error('AI parsing failed, using basic parsing:', aiError);
           showToast('Using basic parsing...', 'info');
@@ -296,9 +303,9 @@ export default function ScanReceiptScreen({ navigation }) {
       setIsProcessing(false);
       showToast('Ready to save!', 'success');
 
-      // Navigate to receipt preview screen
+      // Navigate to document preview screen
       setTimeout(() => {
-        navigation.navigate('ReceiptPreview', {
+        navigation.navigate('DocumentPreview', {
           imageUri: capturedImage,
           parsedData,
           extractedText: extractedText || '',
@@ -306,7 +313,7 @@ export default function ScanReceiptScreen({ navigation }) {
       }, 500);
 
     } catch (error) {
-      console.error('=== RECEIPT PROCESSING ERROR ===');
+      console.error('=== DOCUMENT PROCESSING ERROR ===');
       console.error('Error:', error);
       console.error('Error message:', error.message);
       console.error('Error stack:', error.stack);
@@ -408,7 +415,7 @@ export default function ScanReceiptScreen({ navigation }) {
 
   return (
     <Layout style={styles.layout}>
-      <AppHeader title="Scan Receipt" onBackPress={() => navigation.goBack()} />
+      <AppHeader title="Upload Document" onBackPress={() => navigation.goBack()} />
       
       {toast && (
         <Toast
@@ -427,8 +434,8 @@ export default function ScanReceiptScreen({ navigation }) {
               {Platform.OS !== 'web' ? (
                 <>
                   <Text style={styles.instructionItem}>• Ensure good lighting</Text>
-                  <Text style={styles.instructionItem}>• Place receipt on flat surface</Text>
-                  <Text style={styles.instructionItem}>• Capture entire receipt</Text>
+                  <Text style={styles.instructionItem}>• Place document on flat surface</Text>
+                  <Text style={styles.instructionItem}>• Capture entire document</Text>
                   <Text style={styles.instructionItem}>• Avoid shadows and glare</Text>
                   <Text style={styles.instructionItem}>• Or upload image/PDF documents</Text>
                 </>
@@ -531,7 +538,7 @@ export default function ScanReceiptScreen({ navigation }) {
               <View style={styles.processingInfo}>
                 <ActivityIndicator size="small" color={colors.primary} />
                 <Text style={styles.processingText}>
-                  🔍 Extracting text and analyzing receipt...
+                  🔍 Extracting text and analyzing document...
                 </Text>
               </View>
             )}

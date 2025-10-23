@@ -7,16 +7,16 @@ import HomeScreen from '../screens/HomeScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import AnalyticsScreen from '../screens/AnalyticsScreen';
-import ScanReceiptScreen from '../screens/ScanReceiptScreen';
+import UploadDocumentScreen from '../screens/UploadDocumentScreen';
 import AddEventScreen from '../screens/AddEventScreen';
 import ViewTasksScreen from '../screens/ViewTasksScreen';
 import TaskDetailScreen from '../screens/TaskDetailScreen';
 import ChatScreen from '../screens/ChatScreen';
 import APIKeySetupScreen from '../screens/APIKeySetupScreen';
 import AIProviderSetupScreen from '../screens/AIProviderSetupScreen';
-import ReceiptsListScreen from '../screens/ReceiptsListScreen';
-import ReceiptDetailScreen from '../screens/ReceiptDetailScreen';
-import ReceiptPreviewScreen from '../screens/ReceiptPreviewScreen';
+import DocumentsListScreen from '../screens/DocumentsListScreen';
+import DocumentDetailScreen from '../screens/DocumentDetailScreen';
+import DocumentPreviewScreen from '../screens/DocumentPreviewScreen';
 
 const Stack = createStackNavigator();
 
@@ -31,10 +31,10 @@ export default function MainTabs() {
       <Stack.Screen name="Profile" component={ProfileScreen} />
       <Stack.Screen name="Settings" component={SettingsScreen} />
       <Stack.Screen name="Analytics" component={AnalyticsScreen} />
-      <Stack.Screen name="UploadDocument" component={ScanReceiptScreen} />
-      <Stack.Screen name="ReceiptPreview" component={ReceiptPreviewScreen} />
-      <Stack.Screen name="ReceiptsList" component={ReceiptsListScreen} />
-      <Stack.Screen name="ReceiptDetail" component={ReceiptDetailScreen} />
+      <Stack.Screen name="UploadDocument" component={UploadDocumentScreen} />
+      <Stack.Screen name="DocumentPreview" component={DocumentPreviewScreen} />
+      <Stack.Screen name="DocumentsList" component={DocumentsListScreen} />
+      <Stack.Screen name="DocumentDetail" component={DocumentDetailScreen} />
       <Stack.Screen name="AddEvent" component={AddEventScreen} />
       <Stack.Screen name="ViewTasks" component={ViewTasksScreen} />
       <Stack.Screen name="TaskDetail" component={TaskDetailScreen} />

@@ -1,6 +1,7 @@
 /**
- * ReceiptsListScreen
- * Display all receipts in a scrollable list
+ * DocumentsListScreen (formerly ReceiptsListScreen)
+ * Display all documents in a scrollable list
+ * Includes receipts, invoices, bills, and other document types
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -24,10 +25,10 @@ import ReceiptCard from '../components/ReceiptCard';
 import CardContainer from '../components/CardContainer';
 import { colors } from '../theme/colors';
 import { fonts } from '../theme/fonts';
-import { getUserReceipts, getTotalsByCategory, deleteReceipt } from '../services/receiptService';
+import { getUserDocuments, getTotalsByCategory, deleteDocument } from '../services/documentService';
 import { auth } from '../services/firebase';
 
-export default function ReceiptsListScreen({ navigation }) {
+export default function DocumentsListScreen({ navigation }) {
   const [receipts, setReceipts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -54,8 +55,8 @@ export default function ReceiptsListScreen({ navigation }) {
         return;
       }
 
-      console.log('Fetching receipts from Firestore...');
-      const receiptsData = await getUserReceipts(userId, 100);
+      console.log('Fetching documents from Firestore...');
+      const receiptsData = await getUserDocuments(userId, 100);
       console.log(`✅ Loaded ${receiptsData.length} receipts:`, receiptsData.map(r => ({
         id: r.id,
         merchant: r.merchantName,
@@ -85,7 +86,7 @@ export default function ReceiptsListScreen({ navigation }) {
   };
 
   const handleReceiptPress = (receipt) => {
-    navigation.navigate('ReceiptDetail', { receiptId: receipt.id });
+    navigation.navigate('DocumentDetail', { documentId: receipt.id });
   };
 
   const handleScanPress = () => {
@@ -101,10 +102,10 @@ export default function ReceiptsListScreen({ navigation }) {
       try {
         // Find the receipt to get the imageUrl
         const receipt = receipts.find(r => r.id === receiptId);
-        console.log('Found receipt to delete:', receipt?.merchantName);
+        console.log('Found document to delete:', receipt?.merchantName);
         
-        await deleteReceipt(receiptId, receipt?.imageUrl);
-        console.log('Receipt deleted from Firestore');
+        await deleteDocument(receiptId, receipt?.imageUrl);
+        console.log('Document deleted from Firestore');
         
         // Update local state
         const updatedReceipts = receipts.filter(r => r.id !== receiptId);
@@ -193,7 +194,7 @@ export default function ReceiptsListScreen({ navigation }) {
         <AppHeader title="My Documents" />
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.loadingText}>Loading receipts...</Text>
+          <Text style={styles.loadingText}>Loading documents...</Text>
         </View>
       </Layout>
     );
@@ -201,7 +202,7 @@ export default function ReceiptsListScreen({ navigation }) {
 
   return (
     <Layout style={styles.layout}>
-      <AppHeader title="My Receipts" />
+      <AppHeader title="My Documents" />
       
       <ScrollView 
         style={styles.scrollView}
@@ -237,7 +238,7 @@ export default function ReceiptsListScreen({ navigation }) {
             <Text style={styles.searchIcon}>🔍</Text>
             <TextInput
               style={styles.searchInput}
-              placeholder="Search receipts..."
+              placeholder="Search documents..."
               placeholderTextColor={colors.textSecondary}
               value={searchQuery}
               onChangeText={setSearchQuery}

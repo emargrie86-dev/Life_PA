@@ -1,6 +1,7 @@
 /**
- * ReceiptPreviewScreen
- * Preview extracted receipt data before saving
+ * DocumentPreviewScreen (formerly ReceiptPreviewScreen)
+ * Preview extracted document data before saving
+ * Supports receipts, invoices, utility bills, and more
  */
 
 import React, { useState } from 'react';
@@ -22,12 +23,12 @@ import ButtonPrimary from '../components/ButtonPrimary';
 import Toast from '../components/Toast';
 import { colors } from '../theme/colors';
 import { fonts } from '../theme/fonts';
-import { createReceipt, uploadReceiptImage } from '../services/receiptService';
+import { createDocument, uploadDocumentImage } from '../services/documentService';
 import { createReminder } from '../services/taskService';
 import { auth } from '../services/firebase';
 import { Timestamp } from 'firebase/firestore';
 
-export default function ReceiptPreviewScreen({ route, navigation }) {
+export default function DocumentPreviewScreen({ route, navigation }) {
   const { imageUri, parsedData, extractedText } = route.params;
   
   const [saving, setSaving] = useState(false);
@@ -39,11 +40,16 @@ export default function ReceiptPreviewScreen({ route, navigation }) {
   const [currency, setCurrency] = useState(parsedData.currency || 'USD');
   const [category, setCategory] = useState(parsedData.category || 'Other');
   const [notes, setNotes] = useState('');
-  const [dueDate, setDueDate] = useState(null);
+  const [dueDate, setDueDate] = useState(parsedData.dueDate ? new Date(parsedData.dueDate) : null);
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurringFrequency, setRecurringFrequency] = useState('monthly');
   const [setupReminder, setSetupReminder] = useState(false);
   const [reminderDaysBefore, setReminderDaysBefore] = useState('3');
+  
+  // New document-specific fields
+  const [documentType, setDocumentType] = useState(parsedData.documentType || 'Receipt');
+  const [description, setDescription] = useState(parsedData.description || '');
+  const [referenceNumber, setReferenceNumber] = useState(parsedData.referenceNumber || '');
 
   const categories = ['Groceries', 'Dining', 'Transport', 'Shopping', 'Healthcare', 'Entertainment', 'Utilities', 'Other'];
   const currencies = ['GBP', 'USD', 'EUR', 'CAD', 'AUD', 'JPY'];
@@ -66,7 +72,7 @@ export default function ReceiptPreviewScreen({ route, navigation }) {
   const handleSave = async () => {
     try {
       setSaving(true);
-      showToast('Uploading receipt...', 'info');
+      showToast('Uploading document...', 'info');
 
       // Upload image to Firebase Storage
       console.log('Uploading to Firebase Storage...');
@@ -76,11 +82,11 @@ export default function ReceiptPreviewScreen({ route, navigation }) {
         throw new Error('User not authenticated');
       }
 
-      const imageUrl = await uploadReceiptImage(userId, imageUri);
+      const imageUrl = await uploadDocumentImage(userId, imageUri);
       console.log('Image uploaded:', imageUrl);
 
-      // Create receipt document
-      showToast('Saving receipt...', 'info');
+      // Create document record
+      showToast('Saving document...', 'info');
       
       // Convert date to Firestore Timestamp
       let receiptDate;
@@ -98,7 +104,7 @@ export default function ReceiptPreviewScreen({ route, navigation }) {
         dueDateTimestamp = Timestamp.fromDate(new Date(dueDate));
       }
 
-      const receiptData = {
+      const documentData = {
         userId,
         imageUrl,
         merchantName,
@@ -112,17 +118,21 @@ export default function ReceiptPreviewScreen({ route, navigation }) {
         dueDate: dueDateTimestamp,
         isRecurring,
         recurringFrequency: isRecurring ? recurringFrequency : null,
+        // Document-specific fields
+        documentType,
+        description,
+        referenceNumber,
       };
 
-      console.log('Creating receipt with data:', {
-        ...receiptData,
+      console.log('Creating document with data:', {
+        ...documentData,
         date: receiptDate.toDate().toISOString(),
         dueDate: dueDateTimestamp ? dueDateTimestamp.toDate().toISOString() : null,
       });
 
-      const receiptId = await createReceipt(receiptData);
-      console.log('✅ Receipt created successfully with ID:', receiptId);
-      console.log('Receipt should now appear in the list');
+      const documentId = await createDocument(documentData);
+      console.log('✅ Document created successfully with ID:', documentId);
+      console.log('Document should now appear in the list');
 
       // Create reminder if requested
       if (setupReminder && dueDateTimestamp) {
@@ -138,7 +148,7 @@ export default function ReceiptPreviewScreen({ route, navigation }) {
             description: `Bill payment of ${getCurrencySymbol(currency)}${parseFloat(totalAmount).toFixed(2)} due`,
             dueDate: Timestamp.fromDate(reminderDate),
             category: 'Bills',
-            receiptId,
+            receiptId: documentId,
             isRecurring,
             recurringFrequency: isRecurring ? recurringFrequency : null,
           });
@@ -152,9 +162,9 @@ export default function ReceiptPreviewScreen({ route, navigation }) {
       setSaving(false);
       showToast('Document saved successfully!', 'success');
 
-      // Navigate to receipt detail screen
+      // Navigate to document detail screen
       setTimeout(() => {
-        navigation.replace('ReceiptDetail', { receiptId });
+        navigation.replace('DocumentDetail', { documentId });
       }, 500);
 
     } catch (error) {
@@ -206,7 +216,7 @@ export default function ReceiptPreviewScreen({ route, navigation }) {
           </Text>
         </View>
 
-        {/* Receipt Image Preview */}
+        {/* Document Image Preview */}
         {imageUri && (
           <View style={styles.imageContainer}>
             <Image
@@ -285,6 +295,47 @@ export default function ReceiptPreviewScreen({ route, navigation }) {
               ))}
             </View>
           </View>
+
+          {/* Document Type Display */}
+          {documentType && (
+            <View style={styles.field}>
+              <Text style={styles.label}>Document Type</Text>
+              <View style={styles.documentTypeBadge}>
+                <Text style={styles.documentTypeText}>{documentType}</Text>
+              </View>
+              <Text style={styles.hint}>Auto-detected document category</Text>
+            </View>
+          )}
+
+          {/* Reference/Account Number - Show for bills, invoices, etc. */}
+          {(documentType === 'Utility Bill' || documentType === 'Invoice' || documentType === 'Insurance Document' || referenceNumber) && (
+            <View style={styles.field}>
+              <Text style={styles.label}>Account/Reference Number</Text>
+              <TextInput
+                style={styles.input}
+                value={referenceNumber}
+                onChangeText={setReferenceNumber}
+                placeholder="Account or reference number"
+                placeholderTextColor={colors.textSecondary}
+              />
+            </View>
+          )}
+
+          {/* Document Description - Show for non-receipt documents */}
+          {(documentType !== 'Receipt' || description) && (
+            <View style={styles.field}>
+              <Text style={styles.label}>Description (Optional)</Text>
+              <TextInput
+                style={[styles.input, styles.notesInput]}
+                value={description}
+                onChangeText={setDescription}
+                placeholder="Document description or notes"
+                placeholderTextColor={colors.textSecondary}
+                multiline
+                numberOfLines={2}
+              />
+            </View>
+          )}
 
           <View style={styles.field}>
             <Text style={styles.label}>Notes (Optional)</Text>
@@ -425,7 +476,7 @@ export default function ReceiptPreviewScreen({ route, navigation }) {
         {saving && (
           <View style={styles.savingOverlay}>
             <ActivityIndicator size="large" color={colors.primary} />
-            <Text style={styles.savingText}>Saving receipt...</Text>
+            <Text style={styles.savingText}>Saving document...</Text>
           </View>
         )}
       </ScrollView>
@@ -552,6 +603,18 @@ const styles = StyleSheet.create({
   categoryChipTextSelected: {
     color: '#FFFFFF',
     fontWeight: '600',
+  },
+  documentTypeBadge: {
+    backgroundColor: colors.accent || colors.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+  },
+  documentTypeText: {
+    fontSize: fonts.sizes.body,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
   itemsList: {
     backgroundColor: colors.surface,

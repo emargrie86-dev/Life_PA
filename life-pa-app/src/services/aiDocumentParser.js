@@ -1,15 +1,68 @@
 /**
- * AI-Powered Receipt Parser
- * Uses AI models to intelligently extract receipt data from OCR text
+ * AI-Powered Document Parser (formerly aiReceiptParser)
+ * Uses AI models to intelligently extract data from various document types
+ * Supports receipts, invoices, utility bills, MOT certificates, and more
+ * Now includes advanced document classification and type-specific extraction
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getChatCompletion as getOpenAICompletion } from './openai';
 import { getChatCompletion as getCohereCompletion } from './cohere';
 import { getChatCompletion as getHuggingFaceCompletion } from './huggingface';
+import { parseDocument, isDocumentParsingAvailable } from './documentParser';
 
 /**
- * Parse receipt text using AI
+ * Parse document with advanced classification (NEW METHOD)
+ * Automatically detects document type and extracts relevant fields
+ * @param {string} ocrText - Raw OCR extracted text
+ * @returns {Promise<Object>} Parsed document data with type classification
+ */
+export const parseDocumentWithAI = async (ocrText) => {
+  console.log('=== AI DOCUMENT PARSER (ENHANCED) ===');
+  console.log('Parsing document with classification...');
+  console.log('OCR text length:', ocrText?.length);
+
+  if (!ocrText || ocrText.trim().length === 0) {
+    throw new Error('No text provided for parsing');
+  }
+
+  try {
+    // Use the new document parser with classification
+    const parsedData = await parseDocument(ocrText);
+    console.log('Document parsed with type:', parsedData.documentType);
+    
+    // Convert to receipt-compatible format for consistency
+    const result = {
+      merchantName: parsedData.sender || parsedData.merchantName || 'Unknown',
+      totalAmount: parsedData.totalAmount || 0,
+      currency: parsedData.currency || 'USD',
+      date: parsedData.date || new Date(),
+      category: parsedData.category || 'Other',
+      items: parsedData.items || [],
+      // Add new document-specific fields
+      documentType: parsedData.documentType,
+      description: parsedData.description || '',
+      dueDate: parsedData.dueDate || null,
+      referenceNumber: parsedData.referenceNumber || null,
+      // Additional metadata
+      extractedText: ocrText,
+      parsedAt: parsedData.parsedAt || new Date(),
+    };
+
+    console.log('Enhanced parsed data:', result);
+    return result;
+
+  } catch (error) {
+    console.error('Enhanced AI parsing failed:', error);
+    console.error('Falling back to standard receipt parsing...');
+    
+    // Fallback to standard receipt parsing
+    return parseReceiptWithAI(ocrText);
+  }
+};
+
+/**
+ * Parse receipt text using AI (LEGACY METHOD - kept for compatibility)
  * @param {string} ocrText - Raw OCR extracted text
  * @returns {Promise<Object>} Parsed receipt data
  */

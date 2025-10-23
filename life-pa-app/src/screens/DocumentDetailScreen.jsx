@@ -1,6 +1,7 @@
 /**
- * ReceiptDetailScreen
- * View and edit receipt details
+ * DocumentDetailScreen (formerly ReceiptDetailScreen)
+ * View and edit document details
+ * Handles receipts, invoices, bills, and other document types
  */
 
 import React, { useState, useEffect } from 'react';
@@ -22,11 +23,12 @@ import ButtonPrimary from '../components/ButtonPrimary';
 import Toast from '../components/Toast';
 import { colors } from '../theme/colors';
 import { fonts } from '../theme/fonts';
-import { getReceipt, updateReceipt, deleteReceipt } from '../services/receiptService';
+import { getDocument, updateDocument, deleteDocument } from '../services/documentService';
 import { Timestamp } from 'firebase/firestore';
 
-export default function ReceiptDetailScreen({ route, navigation }) {
-  const { receiptId } = route.params;
+export default function DocumentDetailScreen({ route, navigation }) {
+  const { documentId, receiptId } = route.params; // Support both new and old param names
+  const id = documentId || receiptId; // Use documentId if available, fallback to receiptId
   
   const [receipt, setReceipt] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -48,12 +50,12 @@ export default function ReceiptDetailScreen({ route, navigation }) {
 
   useEffect(() => {
     loadReceipt();
-  }, [receiptId]);
+  }, [id]);
 
   const loadReceipt = async () => {
     try {
       setLoading(true);
-      const receiptData = await getReceipt(receiptId);
+      const receiptData = await getDocument(id);
       setReceipt(receiptData);
       
       // Set editable fields
@@ -108,7 +110,7 @@ export default function ReceiptDetailScreen({ route, navigation }) {
         recurringFrequency: isRecurring ? recurringFrequency : null,
       };
       
-      await updateReceipt(receiptId, updates);
+      await updateDocument(id, updates);
       
       // Update local state
       setReceipt({ ...receipt, ...updates });
@@ -134,7 +136,7 @@ export default function ReceiptDetailScreen({ route, navigation }) {
           style: 'destructive',
           onPress: async () => {
             try {
-              await deleteReceipt(receiptId, receipt.imageUrl);
+              await deleteDocument(id, receipt.imageUrl);
               showToast('Document deleted', 'success');
               navigation.goBack();
             } catch (error) {
@@ -235,7 +237,7 @@ export default function ReceiptDetailScreen({ route, navigation }) {
 
   return (
     <Layout style={styles.layout}>
-      <AppHeader title="Receipt Details" onBackPress={() => navigation.goBack()} />
+      <AppHeader title="Document Details" onBackPress={() => navigation.goBack()} />
       
       {toast && (
         <Toast
@@ -246,7 +248,7 @@ export default function ReceiptDetailScreen({ route, navigation }) {
       )}
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Receipt Image */}
+        {/* Document Image */}
         {receipt.imageUrl && (
           <View style={styles.imageContainer}>
             <Image
